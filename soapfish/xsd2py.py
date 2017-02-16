@@ -47,6 +47,11 @@ def rewrite_paths(schema, cwd, base_path):
 def resolve_import(i, known_paths, known_types, parent_namespace, cwd, base_path):
     assert isinstance(i, (xsdspec.Import, xsdspec.Include))
     path, cwd, location = resolve_location(i.schemaLocation, base_path)
+
+    # Skip if this file has already been included:
+    if location and location in (known_paths or []):
+        return ''
+
     tag = i.__class__.__name__.lower()
     logger.info('Generating code for xsd:%s=%s' % (tag, path))
     xml = open_document(path)
