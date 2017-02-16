@@ -1,0 +1,45 @@
+<xs:schema targetNamespace="urn:fdsns" elementFormDefault="qualified"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="urn:fdsns">
+    <xs:complexType name="credentialsType">
+        <xs:sequence>
+            <xs:element name="username" type="xs:string"/>
+            <xs:element name="password" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="credentials" type="tns:credentialsType"/>
+
+    <xs:complexType name="serviceInfoType">
+        <xs:sequence>
+            <xs:element name="serviceName" type="xs:string"/>
+            <xs:element name="versionNumber" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="serviceInfo" type="tns:serviceInfoType"/>
+
+    <xs:complexType name="flightSearchType">
+        <xs:sequence>
+            <xs:element name="takeoffDateFrom" type="xs:date"/>
+            <xs:element name="takeoffDateTo" type="xs:date"/>
+            <xs:element name="takeoffAirport" type="xs:string" maxOccurs="unbounded"/>
+            <xs:element name="landingAirport" type="xs:string" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="flightSearch" type="tns:flightSearchType"/>
+
+    <xs:complexType name="flightType">
+        <xs:sequence>
+            <xs:element name="flightNumber" type="xs:string"/>
+            <xs:element name="takeoffAirport" type="xs:string"/>
+            <xs:element name="takeoffTime" type="xs:dateTime"/>
+            <xs:element name="landingAirport" type="xs:string"/>
+            <xs:element name="landingTime" type="xs:dateTime"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="flightSearchResponseType">
+        <xs:sequence>
+            <xs:element name="flight" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:element name="flightSearchResponse" type="tns:flightSearchResponseType"/>
+</xs:schema>

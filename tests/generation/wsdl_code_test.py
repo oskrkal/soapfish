@@ -8,6 +8,8 @@ from pythonic_testcase import (
     assert_is_not_empty,
     assert_isinstance,
     assert_length,
+    assert_not_none,
+    assert_true,
 )
 
 from soapfish import utils, wsdl2py, xsd
@@ -79,3 +81,14 @@ class WSDLCodeGenerationTest(PythonicTestCase):
                 'client',
                 cwd='http://example.org/code/')
             schemas, symbols = generated_symbols(code)
+
+    def test_can_generate_code_for_wsdl_importing_schema_and_using_soap_headers(self):
+        path = 'tests/assets/include/include_with_soap_headers.wsdl'
+        xml = utils.open_document(path)
+        code = wsdl2py.generate_code_from_wsdl(xml, 'client', cwd=os.path.dirname(path))
+        schemas, symbols = generated_symbols(code)
+        flight_search_method = symbols.get("flightSearch_method")
+        assert_not_none(flight_search_method)
+        assert_true(hasattr(flight_search_method.input_header, 'credentials'))
+        assert_true(hasattr(flight_search_method.output_header, 'serviceInfo'))
+

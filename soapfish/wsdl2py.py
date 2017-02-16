@@ -12,6 +12,7 @@ from collections import deque
 import six
 from lxml import etree
 
+from . import xsdresolve
 from .soap import SOAPVersion
 from .utils import (
     find_xsd_namespaces,
@@ -109,6 +110,7 @@ def generate_code_from_wsdl(xml, target, use_wsa=False, encoding='utf8', cwd=Non
         schemas=schemas,
         is_server=bool(target == 'server'),
         use_wsa=use_wsa,
+        resolver=xsdresolve.XSDCachedSchemaResolver(xsdresolve.XSDSchemaResolver(base_path=cwd)),
     )
 
     return code.encode(encoding) if encoding else code

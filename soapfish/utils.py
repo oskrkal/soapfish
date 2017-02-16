@@ -72,14 +72,34 @@ def schema_name(obj, location=None):
     return hashlib.md5(value).hexdigest()[:5]
 
 
-def schema_select(schemas, elements):
+def schema_select(schemas, parts, resolver=None):
     selected = None
-    elements = [remove_namespace(x) for x in elements]
+    elements = [remove_namespace(x.element) for x in parts]
     for schema in schemas:
-        if all(schema.get_element_by_name(x) for x in elements):
+        if all(_get_element_by_name(schema, x, resolver) for x in elements):
             selected = schema
             break
     return selected
+
+
+def _get_element_by_name(schema, name, resolver, base_path=None):
+    if hasattr(schema, "get_element_by_name"):
+        return schema.get_element_by_name(name)
+
+    def has_name(element):
+        return element and element.name == name
+
+    element = next(iter(filter(has_name, schema.elements)), None)
+
+    if not element and resolver:
+        for i in itertools.chain(schema.includes, schema.imports):
+            resolved_schema = resolver(schema_location=i.schemaLocation, namespace=i.namespace, base_path=base_path)
+            element = (_get_element_by_name(resolved_schema.schema, name, resolver, base_path=resolved_schema.base_path)
+                       if resolved_schema else None)
+            if element:
+                break
+
+    return element
 
 
 def get_rendering_environment(xsd_namespaces, module='soapfish'):

@@ -1,0 +1,43 @@
+<wsdl:definitions targetNamespace="urn:fdsws" xmlns:fdsws="urn:fdsws" xmlns:fds="urn:fdsns"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <wsdl:types>
+        <xs:schema>
+            <xs:import namespace="urn:fdsns" schemaLocation="schema_with_headers.xsd"/>
+        </xs:schema>
+    </wsdl:types>
+    <wsdl:message name="headers">
+        <wsdl:part name="credentials" element="fds:credentials"/>
+        <wsdl:part name="serviceInfo" element="fds:serviceInfo"/>
+    </wsdl:message>
+    <wsdl:message name="flightSearchRequest">
+        <wsdl:part name="parameters" element="fds:flightSearch"/>
+    </wsdl:message>
+    <wsdl:message name="flightSearchResponse">
+        <wsdl:part name="parameters" element="fds:flightSearchResponse"/>
+    </wsdl:message>
+    <wsdl:portType name="flightDataWebServices">
+        <wsdl:operation name="flightSearch">
+            <wsdl:input message="fdsws:flightSearchRequest"/>
+            <wsdl:output message="fdsws:flightSearchResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="flightDataWebServicesBinding" type="fdsws:flightDataWebServices">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="flightSearch">
+            <wsdl:input>
+                <soap:header message="fdsws:headers" part="fdsws:credentials" use="literal"/>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:header message="fdsws:headers" part="fdsws:serviceInfo" use="literal"/>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="flightWS">
+        <wsdl:documentation>Flight Web Services</wsdl:documentation>
+        <wsdl:port name="flightWSPort" binding="fdsws:flightDataWebServicesBinding">
+            <soap:address location="http://localhost/flightWS"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>
