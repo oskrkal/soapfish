@@ -924,26 +924,26 @@ class MaxOccursTest(unittest.TestCase):
 
     def test_xmlvalue_simple(self):
         max_occurs = xsd.MaxOccurs()
-        value = max_occurs.xmlvalue(1)
+        value = max_occurs.xmlvalue(1, None)
         self.assertEqual('1', value)
-        value = max_occurs.xmlvalue(5)
+        value = max_occurs.xmlvalue(5, None)
         self.assertEqual('5', value)
 
     def test_xmlvalue_unbounded(self):
         max_occurs = xsd.MaxOccurs()
-        value = max_occurs.xmlvalue(xsd.UNBOUNDED)
+        value = max_occurs.xmlvalue(xsd.UNBOUNDED, None)
         self.assertEqual('unbounded', value)
 
     def test_pythonvalue_simple(self):
         max_occurs = xsd.MaxOccurs()
-        value = max_occurs.pythonvalue('1')
+        value = max_occurs.pythonvalue('1', None)
         self.assertEqual(1, value)
-        value = max_occurs.pythonvalue('5')
+        value = max_occurs.pythonvalue('5', None)
         self.assertEqual(5, value)
 
     def test_pythonvalue_unbounded(self):
         max_occurs = xsd.MaxOccurs()
-        value = max_occurs.pythonvalue('unbounded')
+        value = max_occurs.pythonvalue('unbounded', None)
         self.assertEqual(xsd.UNBOUNDED, value)
 
 

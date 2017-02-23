@@ -26,7 +26,7 @@ class DateTest(SimpleTypeTestCase):
     def test_rendering_timezones(self):
         fake_tz = FixedOffset(1, 15, 'dummy zone')
         date_ = XSDDate(2001, 10, 26, tzinfo=fake_tz)
-        rendered_xml = xsd.Date().xmlvalue(date_)
+        rendered_xml = xsd.Date().xmlvalue(date_, None)
         assert_equals('2001-10-26+01:15', rendered_xml)
 
     def test_wrong_type(self):
@@ -61,8 +61,8 @@ class DateTest(SimpleTypeTestCase):
                 return timedelta(hours=1)
         tz = SummerWinterTZ()
         xsd_dt = xsd.DateTime()
-        assert_equals('2013-11-26T00:00:00+00:00', xsd_dt.xmlvalue(datetime(2013, 11, 26, tzinfo=tz)))
-        assert_equals('2013-07-26T00:00:00+01:00', xsd_dt.xmlvalue(datetime(2013, 7, 26, tzinfo=tz)))
+        assert_equals('2013-11-26T00:00:00+00:00', xsd_dt.xmlvalue(datetime(2013, 11, 26, tzinfo=tz), None))
+        assert_equals('2013-07-26T00:00:00+01:00', xsd_dt.xmlvalue(datetime(2013, 7, 26, tzinfo=tz), None))
 
     def test_accepts_only_compatible_types(self):
         self.assert_can_set(None)

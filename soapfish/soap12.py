@@ -43,7 +43,7 @@ class Code(xsd.ComplexType):
 class LanguageString(xsd.String):
 
     def render(self, parent, value, namespace, elementFormDefault):
-        parent.text = self.xmlvalue(value)
+        parent.text = self.xmlvalue(value, parent)
         parent.set('{%s}lang' % ns.xml, 'en')
 
 

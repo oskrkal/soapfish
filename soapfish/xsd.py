@@ -134,15 +134,42 @@ class SimpleType(Type):
     '''
 
     def render(self, parent, value, namespace, elementFormDefault):
-        parent.text = self.xmlvalue(value)
+        parent.text = self.xmlvalue(value, parent)
+
+    def render_attribute(self, parent, name, value):
+        parent.set(name, self.xmlvalue(value, parent))
 
     def parse_xmlelement(self, xmlelement):
-        return self.pythonvalue(xmlelement.text)
+        return self.pythonvalue(xmlelement.text, xmlelement)
 
-    def xmlvalue(self, value):
+    def parse_attribute(self, xmlelement, field_name, default=None):
+        xmlvalue = xmlelement.get(field_name)
+        if xmlvalue is None:
+            xmlvalue = default
+        return self.pythonvalue(xmlvalue, xmlelement)
+
+    def xmlvalue(self, value, dest_element):
+        """
+        Converts pythonic value to a corresponding XML value that can be set
+        in the target XML element as its attribute or value.
+
+        :param value: pythonic value to convert
+        :param dest_element: destination XML element where the value will be
+            stored to provide context
+        :return: XML representation of value
+        """
         raise NotImplementedError
 
-    def pythonvalue(self, xmlvalue):
+    def pythonvalue(self, xmlvalue, src_element):
+        """
+        Converts XML value to a corresponding pythonic value. Conversion from
+        string must be supported.
+
+        :param xmlvalue: XML value to convert
+        :param src_element: source XML element to provide context (e.g.
+            declared namespaces)
+        :return: a pythonic representation of xmlvalue
+        """
         raise NotImplementedError
 
 
@@ -204,10 +231,10 @@ class String(SimpleType):
 
         return value
 
-    def xmlvalue(self, value):
+    def xmlvalue(self, value, dest_element):
         return value
 
-    def pythonvalue(self, xmlvalue):
+    def pythonvalue(self, xmlvalue, src_element):
         return xmlvalue
 
     def _clean_whitespace(self, value):
@@ -232,7 +259,7 @@ class Boolean(SimpleType):
         else:
             raise ValueError("Value '%s' for class '%s'." % (str(value), self.__class__.__name__))
 
-    def xmlvalue(self, value):
+    def xmlvalue(self, value, dest_element):
         if value is False:
             return 'false'
         elif value is True:
@@ -242,15 +269,15 @@ class Boolean(SimpleType):
         else:
             raise ValueError("Value '%s' for class '%s'." % (str(value), self.__class__.__name__))
 
-    def pythonvalue(self, value):
-        if value == 'false':
+    def pythonvalue(self, xmlvalue, src_element):
+        if xmlvalue == 'false':
             return False
-        elif value == 'true':
+        elif xmlvalue == 'true':
             return True
-        elif value == 'nil' or value is None:
+        elif xmlvalue == 'nil' or xmlvalue is None:
             return None
         else:
-            raise ValueError("Boolean value error - %s" % value)
+            raise ValueError("Boolean value error - %s" % xmlvalue)
 
 
 class Date(SimpleType):
@@ -288,7 +315,7 @@ class Date(SimpleType):
             return XSDDate(value.year, value.month, value.day, tzinfo=tz)
         raise ValueError('Incorrect type value %r for date field.' % value)
 
-    def xmlvalue(self, value):
+    def xmlvalue(self, value, dest_element):
         timestring_without_tz = value.strftime('%Y-%m-%d')
         tz = getattr(value, 'tzinfo', None)
         if not tz:
@@ -297,15 +324,15 @@ class Date(SimpleType):
         formatted_tz = timezone_offset_to_string(utc_offset)
         return timestring_without_tz + formatted_tz
 
-    def pythonvalue(self, value):
-        if (value is None) or (value == 'nil'):
+    def pythonvalue(self, xmlvalue, src_element):
+        if (xmlvalue is None) or (xmlvalue == 'nil'):
             return None
-        if not isinstance(value, six.string_types):
-            raise ValueError('Expected a string, not %r' % value)
+        if not isinstance(xmlvalue, six.string_types):
+            raise ValueError('Expected a string, not %r' % xmlvalue)
 
-        match = self.YEAR_MONTH_DAY_REGEX.match(value)
+        match = self.YEAR_MONTH_DAY_REGEX.match(xmlvalue)
         if match is None:
-            raise ValueError('Unable to parse date string %r' % value)
+            raise ValueError('Unable to parse date string %r' % xmlvalue)
         year = int(match.group('year'))
         month = int(match.group('month'))
         day = int(match.group('day'))
@@ -339,7 +366,7 @@ class DateTime(SimpleType):
             return iso8601.parse_date(value)
         raise ValueError("Incorrect type value '%s' for DateTime field." % value)
 
-    def xmlvalue(self, value):
+    def xmlvalue(self, value, dest_element):
         if value is None:
             return 'nil'
         else:
@@ -351,11 +378,11 @@ class DateTime(SimpleType):
             formatted_tz = timezone_offset_to_string(utc_offset)
             return timestring_without_tz + formatted_tz
 
-    def pythonvalue(self, value):
-        if value is None or value == 'nil':
+    def pythonvalue(self, xmlvalue, src_element):
+        if xmlvalue is None or xmlvalue == 'nil':
             return None
         else:
-            return iso8601.parse_date(value)
+            return iso8601.parse_date(xmlvalue)
 
 
 class Decimal(SimpleType):
@@ -427,10 +454,10 @@ class Decimal(SimpleType):
         self._check_restrictions(value)
         return value
 
-    def xmlvalue(self, value):
+    def xmlvalue(self, value, dest_element):
         return str(value)
 
-    def pythonvalue(self, xmlvalue):
+    def pythonvalue(self, xmlvalue, src_element):
         if xmlvalue == 'nil':
             return None
         else:
@@ -510,13 +537,13 @@ class MaxOccurs(SimpleType):
         else:
             return int(value)
 
-    def xmlvalue(self, value):
+    def xmlvalue(self, value, dest_element):
         if value == UNBOUNDED:
             return 'unbounded'
         else:
             return str(value)
 
-    def pythonvalue(self, xmlvalue):
+    def pythonvalue(self, xmlvalue, src_element):
         return self.accept(xmlvalue)
 
 
@@ -687,18 +714,15 @@ class Attribute(Element):
         elif value == NIL:
             if self.nillable:
                 xmlvalue = 'nil'
+                parent.set(field_name, xmlvalue)
             else:
                 raise ValueError('Nil value for not nillable Attribute.')
         else:
-            xmlvalue = self._type.xmlvalue(value)
-        parent.set(field_name, xmlvalue)
+            self._type.render_attribute(parent, field_name, value)
 
     def parse(self, instance, field_name, xmlelement):
         self._evaluate_type()
-        xmlvalue = xmlelement.get(field_name)
-        if xmlvalue is None:
-            xmlvalue = self.default
-        value = self._type.pythonvalue(xmlvalue)
+        value = self._type.parse_attribute(xmlelement, field_name, default=self.default)
         setattr(instance, field_name, value)
 
 
