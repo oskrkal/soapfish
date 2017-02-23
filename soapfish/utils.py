@@ -39,7 +39,9 @@ def open_document(path):
 
 # --- Template Filters --------------------------------------------------------
 def remove_namespace(qname):
-    return qname.split(':')[-1] if qname else None
+    return (qname.localname if hasattr(qname, "localname") else
+            qname.split(':')[-1] if qname else
+            None)
 
 
 def uncapitalize(value):
@@ -150,19 +152,16 @@ def get_rendering_environment(xsd_namespaces, module='soapfish'):
         elif isinstance(obj, (xsdspec.Extension, xsdspec.Restriction)):
             if obj.base:
                 qname = obj.base
-        elif isinstance(obj, six.string_types):
+        elif is_qname(obj):
             qname = obj
 
         if not qname:
             raise ValueError('Unable to determine type of %s' % obj)
 
-        qname = qname.split(':')
-        if len(qname) < 2:
-            qname.insert(0, None)
-        ns, name = qname
+        namespace, name = qname
         name = capitalize(name)
 
-        if ns in xsd_namespaces:
+        if namespace in xsd_namespaces or namespace in (ns.xsd, ns.xsd2000):
             return 'xsd.%s' % name
         elif known_types is not None and name in known_types:
             return '%s' % name
@@ -241,3 +240,12 @@ def timezone_offset_to_string(offset):
     hours = offset_seconds // 3600
     minutes = (offset_seconds % 3600) // 60
     return '%s%02d:%02d' % (sign, hours, minutes)
+
+
+def is_qname(qname):
+    if not hasattr(qname, "namespace") and not hasattr(qname, "localname"):
+        return False
+
+    def is_none_or_string(s):
+        return s is None or isinstance(s, six.string_types)
+    return is_none_or_string(qname.namespace) and isinstance(qname.localname, six.string_types)

@@ -12,7 +12,7 @@ import sys
 import six
 from lxml import etree
 
-from . import namespaces as ns, xsd, xsdspec
+from . import namespaces as ns, xsd, xsdspec, xsd_types
 from .utils import uncapitalize, walk_schema_tree
 
 NUMERIC_TYPES = [
@@ -29,27 +29,28 @@ logger = logging.getLogger('soapfish')
 
 
 # --- Helpers -----------------------------------------------------------------
-def get_xsd_type(_type):
+def get_xsd_type(_type, target_namespace):
     '''
     Check if type_ is a basic type in the XSD scope otherwise it must be user
     defined type.
+    :param target_namespace:
     '''
     base_class = _type.__class__.__bases__[0]
     if base_class == xsd.SimpleType or _type.__class__ in ALL_TYPES:
-        return 'xsd:' + uncapitalize(_type.__class__.__name__)
+        return xsd_types.XSDQName(xsdspec.XSD_NAMESPACE, uncapitalize(_type.__class__.__name__))
     else:
-        return 'sns:' + uncapitalize(_type.__class__.__name__)
+        return xsd_types.XSDQName(target_namespace, uncapitalize(_type.__class__.__name__))
 
 
-def xsd_attribute(attribute):
+def xsd_attribute(attribute, target_namespace):
     xsdattr = xsdspec.Attribute()
     xsdattr.name = attribute._name
     xsdattr.use = attribute.use
-    xsdattr.type = get_xsd_type(attribute._type)
+    xsdattr.type = get_xsd_type(attribute._type, target_namespace)
     return xsdattr
 
 
-def create_xsd_element(element):
+def create_xsd_element(element, target_namespace):
     xsd_element = xsdspec.Element()
     xsd_element.name = element.tagname if element.tagname else element._name
     xsd_element.nillable = element.nillable
@@ -64,7 +65,7 @@ def create_xsd_element(element):
     if not inspect.isclass(element._passed_type):
         xsd_element.simpleType = xsdspec.SimpleType()
         xsd_element.simpleType.restriction = xsdspec.Restriction()
-        xsd_element.simpleType.restriction.base = get_xsd_type(element._type)
+        xsd_element.simpleType.restriction.base = get_xsd_type(element._type, target_namespace)
 
         if (
             hasattr(element._type, 'enumeration') and element._type.enumeration and
@@ -95,17 +96,17 @@ def create_xsd_element(element):
         if hasattr(_type, 'totalDigits') and _type.totalDigits:
             xsd_element.simpleType.restriction.totalDigits = xsdspec.RestrictionValue(value=str(_type.totalDigits))
     else:
-        xsd_element.type = get_xsd_type(element._type)
+        xsd_element.type = get_xsd_type(element._type, target_namespace)
     return xsd_element
 
 
-def xsd_complexType(complexType, named=True):
+def xsd_complexType(complexType, target_namespace, named=True):
     xsd_ct = xsdspec.XSDComplexType()
     if named:
         xsd_ct.name = uncapitalize(complexType.__name__)
 
     for attribute in complexType._meta.attributes:
-        xsd_attr = xsd_attribute(attribute)
+        xsd_attr = xsd_attribute(attribute, target_namespace)
         xsd_ct.attributes.append(xsd_attr)
 
     # Elements can be wrapped with few type of containers:
@@ -126,16 +127,16 @@ def xsd_complexType(complexType, named=True):
                 # unable to reproduce the error condition in a test case.
                 # Forcing type evaluation fixed the problem though.
                 element_._evaluate_type()
-            xsd_element = create_xsd_element(element_)
+            xsd_element = create_xsd_element(element_, target_namespace)
             container.elements.append(xsd_element)
     return xsd_ct
 
 
-def xsd_simpleType(st):
+def xsd_simpleType(st, target_namespace):
     xsd_simpleType = xsdspec.SimpleType()
     xsd_simpleType.name = uncapitalize(st.__name__)
     xsd_restriction = xsdspec.Restriction()
-    xsd_restriction.base = get_xsd_type(st.__bases__[0]())
+    xsd_restriction.base = get_xsd_type(st.__bases__[0](), target_namespace)
     if hasattr(st, 'enumeration') and st.enumeration:
         for enum in st.enumeration:
             xsd_restriction.enumerations.append(xsdspec.Enumeration.create(enum))
@@ -174,11 +175,11 @@ def generate_xsdspec(schema):
     build_imports(xsd_schema, schema.imports)
     build_includes(xsd_schema, schema.includes)
     for st in schema.simpleTypes:
-        xsd_st = xsd_simpleType(st)
+        xsd_st = xsd_simpleType(st, schema.targetNamespace)
         xsd_schema.simpleTypes.append(xsd_st)
 
     for ct in schema.complexTypes:
-        xsd_ct = xsd_complexType(ct)
+        xsd_ct = xsd_complexType(ct, schema.targetNamespace)
         xsd_schema.complexTypes.append(xsd_ct)
 
     generate_elements(xsd_schema, schema)
@@ -190,9 +191,9 @@ def generate_elements(xsd_schema, schema):
         xsd_element = xsdspec.Element()
         xsd_element.name = name
         if isinstance(element._passed_type, six.string_types) or inspect.isclass(element._passed_type):
-            xsd_element.type = get_xsd_type(element._type)
+            xsd_element.type = get_xsd_type(element._type, schema.targetNamespace)
         else:
-            xsd_element.complexType = xsd_complexType(element._type.__class__, named=False)
+            xsd_element.complexType = xsd_complexType(element._type.__class__, schema.targetNamespace, named=False)
         xsd_schema.elements.append(xsd_element)
 
 

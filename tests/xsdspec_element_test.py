@@ -2,16 +2,17 @@
 from nose import SkipTest
 from pythonic_testcase import PythonicTestCase, assert_equals, assert_raises
 
-from soapfish import xsd, xsdspec
+from soapfish import xsd, xsdspec, xsd_types
 
 
 class XSDSpecElementTest(PythonicTestCase):
     def test_can_render_simple_element(self):
         element = xsdspec.Element()
         element.name = 'Name'
-        element.type = 'xs:string'
+        element.type = xsd_types.XSDQName(namespace='http://www.w3.org/2001/XMLSchema', localname='string')
 
-        expected_xml = b'<element name="Name" type="xs:string"/>\n'
+        # WARN: this test is fragile, it relies on how lxml library renders XML
+        expected_xml = b'<element xmlns:xs="http://www.w3.org/2001/XMLSchema" name="Name" type="xs:string"/>\n'
         assert_equals(expected_xml, element.xml('element'))
 
     def test_can_render_elements_with_anonymous_simple_types(self):
@@ -19,14 +20,16 @@ class XSDSpecElementTest(PythonicTestCase):
         element.name = 'versionNumber'
         element.simpleType = xsdspec.SimpleType(
             restriction=xsdspec.Restriction(
-                base='string',
+                base=xsd_types.XSDQName(namespace='http://www.w3.org/2001/XMLSchema', localname='string'),
                 pattern=xsdspec.Pattern(value='\d{2}\.\d{1,2}')
             )
         )
+
+        # WARN: this test is fragile, it relies on how lxml library renders XML
         expected_xml = (
             b'<element name="versionNumber">\n'
             b'  <simpleType>\n'
-            b'    <restriction base="string">\n'
+            b'    <restriction xmlns:xs="http://www.w3.org/2001/XMLSchema" base="xs:string">\n'
             b'      <pattern value="\d{2}\.\d{1,2}"/>\n'
             b'    </restriction>\n'
             b'  </simpleType>\n'

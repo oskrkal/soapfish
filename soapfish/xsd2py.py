@@ -13,7 +13,7 @@ import sys
 import six
 from lxml import etree
 
-from . import xsdspec
+from . import xsdspec, xsd_types
 from .utils import (
     find_xsd_namespaces,
     get_rendering_environment,
@@ -96,6 +96,7 @@ def _reorder_complexTypes(schema):
     render before the children.
     """
     weights = {}
+    tns = schema.targetNamespace
     for n, complex_type in enumerate(schema.complexTypes):
         content = complex_type.complexContent
         if content:
@@ -105,30 +106,41 @@ def _reorder_complexTypes(schema):
                 base = extension.base
             elif restriction:
                 base = restriction.base
+            if base and base.namespace is None:
+                base = xsd_types.XSDQName(tns, base.localname)
         else:
-            base = ''
+            base = None
 
-        weights[complex_type.name] = (n, base)
+        weights[(tns, complex_type.name)] = (n, base)
 
     def _cmp(a, b):
-        a = getattr(a, 'name', a)
-        b = getattr(b, 'name', b)
+        def get_qname(type_or_qname):
+            name = getattr(type_or_qname, 'name', None)
+            return (tns, name) if name is not None else type_or_qname
+
+        def is_extension(obj, base):
+            return base and obj == base
+
+        def is_known_type(qname):
+            return qname and (qname in weights)
+
+        a = get_qname(a)
+        b = get_qname(b)
 
         w_a, base_a = weights[a]
         w_b, base_b = weights[b]
-        # a and b are not extension/restriction
-        if not base_a and not base_b:
-            return w_a - w_b
-        is_extension = lambda obj, base: obj == base
-        has_namespace = lambda base: ':' in base
         # a is a extension/restriction of b: a > b
-        if is_extension(b, base_a) or has_namespace(base_a):
+        if is_extension(b, base_a):
             return 1
         # b is a extension/restriction of a: a < b
-        elif is_extension(a, base_b) or has_namespace(base_b):
+        elif is_extension(a, base_b):
             return -1
+        # a and b are not extension/restriction or extend/restrict a type defined outside of this schema
+        elif not is_known_type(base_a) and not is_known_type(base_b):
+            return w_a - w_b
         # inconclusive, do the same test with their bases
-        return _cmp(base_a or a, base_b or b)
+        return _cmp(base_a if is_known_type(base_a) else a,
+                    base_b if is_known_type(base_b) else b)
 
     if hasattr(functools, 'cmp_to_key'):
         kw = {'key': functools.cmp_to_key(_cmp)}

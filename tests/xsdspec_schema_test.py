@@ -1,7 +1,7 @@
 
 from pythonic_testcase import PythonicTestCase, assert_equals, assert_none
 
-from soapfish import xsdspec
+from soapfish import xsdspec, xsd_types
 
 
 class XSDSpecSchemaTest(PythonicTestCase):
@@ -34,7 +34,7 @@ class XSDSpecSchemaTest(PythonicTestCase):
 
         person_reference = job_element.complexType.sequence.elements[0]
         assert_none(person_reference.name)
-        assert_equals('example:person', person_reference.ref)
+        assert_equals(xsd_types.XSDQName("http://site.example/ws/spec", "person"), person_reference.ref)
 
         person_element = schema.elements[0]
         assert_equals('person', person_element.name)

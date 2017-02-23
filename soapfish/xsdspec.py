@@ -30,7 +30,7 @@ class RestrictionValue(xsd.ComplexType):
 
 class Restriction(xsd.ComplexType):
     NAMESPACE = ns.xsd
-    base = xsd.Attribute(xsd.String)
+    base = xsd.Attribute(xsd.QName)
     enumerations = xsd.ListElement(Enumeration, 'enumeration')
     pattern = xsd.Element(Pattern)
     minInclusive = xsd.Element(RestrictionValue)
@@ -65,8 +65,8 @@ class SimpleType(xsd.ComplexType):
 class Element(xsd.ComplexType):
     NAMESPACE = ns.xsd
     name = xsd.Attribute(xsd.String, use=xsd.Use.OPTIONAL)
-    type = xsd.Attribute(xsd.String, use=xsd.Use.OPTIONAL)
-    ref = xsd.Attribute(xsd.String, use=xsd.Use.OPTIONAL)
+    type = xsd.Attribute(xsd.QName, use=xsd.Use.OPTIONAL)
+    ref = xsd.Attribute(xsd.QName, use=xsd.Use.OPTIONAL)
     minOccurs = xsd.Attribute(xsd.Integer, use=xsd.Use.OPTIONAL)
     maxOccurs = xsd.Attribute(xsd.MaxOccurs, use=xsd.Use.OPTIONAL)
     nillable = xsd.Attribute(xsd.Boolean, use=xsd.Use.OPTIONAL)
@@ -82,8 +82,8 @@ class Sequence(xsd.ComplexType):
 class Attribute(xsd.ComplexType):
     NAMESPACE = ns.xsd
     name = xsd.Attribute(xsd.String)
-    ref = xsd.Attribute(xsd.String)
-    type = xsd.Attribute(xsd.String)
+    ref = xsd.Attribute(xsd.QName)
+    type = xsd.Attribute(xsd.QName)
     use = xsd.Attribute(xsd.String)
     simpleType = xsd.Element(SimpleType, minOccurs=0)
 
@@ -96,7 +96,7 @@ class AttributeGroup(xsd.ComplexType):
 
 class AttributeGroupReference(xsd.ComplexType):
     NAMESPACE = ns.xsd
-    ref = xsd.Attribute(xsd.String)
+    ref = xsd.Attribute(xsd.QName)
 
     def to_python(self):
         typename = get_type(self.ref)
@@ -106,7 +106,7 @@ class AttributeGroupReference(xsd.ComplexType):
 
 class Extension(xsd.ComplexType):
     NAMESPACE = ns.xsd
-    base = xsd.Attribute(xsd.String)
+    base = xsd.Attribute(xsd.QName)
     sequence = xsd.Element(Sequence)
     attributes = xsd.ListElement(Attribute, 'attribute')
     attributeGroups = xsd.ListElement(AttributeGroupReference, 'attributeGroup')

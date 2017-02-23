@@ -602,6 +602,31 @@ class Element(object):
             else:
                 self._type = self._passed_type()
 
+    @staticmethod
+    def _create_and_append_element(tag_name, parent):
+        """
+        Creates XML element and appends it to the parent element.
+
+        The reason for immediately appending the new element to its parent
+        is that the child element has parent's namespaces mapping available
+        while its content is being created.
+
+        When a XML element is appended to its parent it inherits its namespace
+        mapping. In some situations, a prefix already defined in the child
+        element can be renamed after appending, while especially attribute
+        values (for instance xsi:type) can retain the old prefix. This would
+        then result in error during XML deserialization.
+
+        :param tag_name: new element tag name
+        :param parent: parent element
+        :return: new element
+        """
+        # create XML element and immediately add to parent, so that correct nsmap is
+        # available for all nested attributes and elements
+        xmlelement = etree.Element(tag_name)
+        parent.append(xmlelement)
+        return xmlelement
+
     def empty_value(self):
         '''
         This method is used when a new object is constructed for a field.
@@ -636,12 +661,11 @@ class Element(object):
         if namespace is not None and elementFormDefault == ElementFormDefault.QUALIFIED:
             field_name = '{%s}%s' % (namespace, field_name)
 
-        xmlelement = etree.Element(field_name)
+        xmlelement = self._create_and_append_element(field_name, parent)
         if value == NIL:
             xmlelement.set('{%s}nil' % ns.xsi, 'true')
         else:
             self._type.render(xmlelement, value, namespace, elementFormDefault)
-        parent.append(xmlelement)
 
     def parse(self, instance, field_name, xmlelement):
         self._evaluate_type()
@@ -679,10 +703,9 @@ class ClassNamedElement(Element):
         if namespace:
             tagname = '{%s}%s' % (namespace, tagname)
 
-        xmlelement = etree.Element(tagname)
+        xmlelement = self._create_and_append_element(tagname, parent)
         self._type.render(xmlelement, value, namespace=namespace,
                           elementFormDefault=value.SCHEMA.elementFormDefault)
-        parent.append(xmlelement)
 
 
 class Attribute(Element):
@@ -770,9 +793,8 @@ class Ref(Element):
             tagname = '{%s}%s' % (namespace, field_name)
         else:
             tagname = field_name
-        ref_element = etree.Element(tagname)
+        ref_element = self._create_and_append_element(tagname, parent)
         self._type.render(ref_element, value, namespace, elementFormDefault)
-        parent.append(ref_element)
 
 
 class Content(Ref):
@@ -847,12 +869,11 @@ class ListElement(Element):
             tagname = self.tagname
 
         for item in items:
-            xmlelement = etree.Element(tagname)
+            xmlelement = self._create_and_append_element(tagname, parent)
             if item == NIL:
                 xmlelement.set('{%s}nil' % ns.xsi, 'true')
             else:
                 self._type.render(xmlelement, item, namespace, elementFormDefault)
-            parent.append(xmlelement)
 
     def parse(self, instance, field_name, xmlelement):
         self._evaluate_type()

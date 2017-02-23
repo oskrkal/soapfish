@@ -5,7 +5,7 @@ from . import namespaces as ns
 
 # --- Functions ---------------------------------------------------------------
 def get_by_name(_list, fullname):
-    name = fullname.split(':')[-1]
+    name = fullname.localname if hasattr(fullname, "localname") else fullname.split(':')[-1]
     for item in _list:
         if item.name == name:
             return item
