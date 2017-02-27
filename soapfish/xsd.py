@@ -54,7 +54,7 @@ from lxml import etree
 
 from . import namespaces as ns
 from .utils import timezone_offset_to_string
-from .xsd_types import XSDDate
+from .xsd_types import XSDDate, XSDQName
 
 # TODO: Change import we update to iso8601 > 0.1.11 (fixed in 031688e)
 from iso8601.iso8601 import UTC, FixedOffset  # isort:skip
@@ -1160,8 +1160,67 @@ class AnyURI(String):
     pass
 
 
-class QName(String):
-    pass
+class QName(SimpleType):
+    NCNAME_REGEX = re.compile(r"[a-zA-Z_][\w\.-]*$")
+
+    def accept(self, value):
+        if value is None:
+            return None
+
+        namespace, localname = self._get_ns_and_name(value)
+
+        if namespace == "":
+            raise ValueError("Namespace '%s' must be None or non-empty string." % (namespace,))
+        if not localname or not self.NCNAME_REGEX.match(localname):
+            raise ValueError("Local name '%s' is not a valid xsd:NCNAME." % (localname,))
+
+        return value
+
+    def xmlvalue(self, value, dest_element):
+        if value is None:
+            return None
+        namespace, localname = self._get_ns_and_name(value)
+        return etree.QName(namespace, localname) if namespace else localname
+
+    def pythonvalue(self, xmlvalue, src_element):
+        if xmlvalue is None:
+            return None
+        elif isinstance(xmlvalue, etree.QName):
+            namespace = xmlvalue.namespace
+            localname = xmlvalue.localname
+        elif isinstance(xmlvalue, six.string_types):
+            prefix, localname = self._get_prefix_and_name(xmlvalue)
+            namespace = self._get_namespace(prefix, xmlvalue, src_element.nsmap)
+        else:
+            raise ValueError("Value '%s' is not a valid XML value for a QName." % xmlvalue)
+        return XSDQName(namespace, localname)
+
+    @staticmethod
+    def _collapse_whitespace(value):
+        return re.sub(r"[\t\r\n\s]+", " ", value.strip())
+
+    @staticmethod
+    def _get_ns_and_name(value):
+        try:
+            return value.namespace, value.localname
+        except (TypeError, KeyError):
+            raise ValueError("Value '%s' is not valid value for QName; a pair of namespace and local name expected." % (value,))
+
+    def _get_prefix_and_name(self, strvalue):
+        strvalue = self._collapse_whitespace(strvalue)
+        items = strvalue.split(":", 1)
+
+        prefix = items[-2] if len(items) == 2 else None
+        local_name = items[-1]
+        return prefix, local_name
+
+    def _get_namespace(self, prefix, original_value, nsmap):
+        if prefix is None:
+            return None
+        namespace = nsmap.get(prefix)
+        if namespace is None:
+            raise ValueError("Namespace prefix '%s' in value '%s' is not defined" % (prefix, original_value))
+        return namespace
 
 
 class NMTOKEN(String):

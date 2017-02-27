@@ -8,6 +8,7 @@ For example xsd.Date might contain a timezone reference but that is not allowed
 for datetime.date.
 """
 
+from collections import namedtuple
 from datetime import date
 
 
@@ -68,3 +69,13 @@ class XSDDate(object):
 
     def __repr__(self):
         return 'XSDDate(%r, %r, %r, tzinfo=%r)' % (self.year, self.month, self.day, self.tzinfo)
+
+
+XSDQName = namedtuple("XSDQName", ["namespace", "localname"])
+# Represents the value of xsd.QName. The class defines two fields:
+#
+# * namespace - containing a namespace URI
+# * localname - containing a local identifier which must be an xsd:NCName,
+#   i.e. it may only start with letter and contain letters, digits, dots,
+#   hyphens and underscores.
+
