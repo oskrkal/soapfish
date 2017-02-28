@@ -36,9 +36,9 @@ Schema_{{ schema_name(schema, location) }} = Schema_{{ schema_name(schema) }}
 {# [blank line] #}
 {%- endmacro %}
 
-{% macro render_xsd_List(name, known_types=None) -%}
+{% macro render_xsd_List(name, known_types=None, targetNamespace=None) -%}
 class {{ name|capitalize }}(xsd.List):
-    pass
+    XSI_TYPE = xsd_types.XSDQName('{{targetNamespace}}', '{{name}}')
 {# [blank line] #}
 {# [blank line] #}
 {%- endmacro %}
@@ -63,8 +63,9 @@ class {{ group.name|capitalize }}(xsd.Group):
 {# [blank line] #}
 {%- endmacro %}
 
-{% macro render_xsd_Restriction(name, restriction, known_types=None) -%}
+{% macro render_xsd_Restriction(name, restriction, known_types=None, targetNamespace=None) -%}
 class {{ name|capitalize }}({{ restriction|type(known_types) }}):
+    XSI_TYPE = xsd_types.XSDQName('{{targetNamespace}}', '{{name}}')
 {%- if restriction.enumerations %}
     enumeration = [{% for enum in restriction.enumerations %}'{{ enum.value }}'{% if not loop.last %}, {% endif %}{% endfor %}]
 {%- endif %}
@@ -81,33 +82,31 @@ class {{ name|capitalize }}({{ restriction|type(known_types) }}):
 {%- elif restriction.maxExclusive %}
     maxExclusive = r'{{ restriction.maxExclusive.value }}'
 {%- endif %}
-{%- if not restriction.enumerations and not restriction.pattern
-        and not restriction.minInclusive and not restriction.minExclusive
-        and not restriction.maxInclusive and not restriction.maxExclusive %}
-    pass
-{%- endif %}
 {# [blank line] #}
 {# [blank line] #}
 {%- endmacro %}
 
-{% macro render_complexType(class_name, content, known_types=None) -%}
+{% macro render_complexType(class_name, content, known_types=None, targetNamespace=None) -%}
 {%- set ct = content %}
 {%- if not ct.sequence and not ct.complexContent %}
 class {{ class_name|capitalize }}(xsd.ComplexType):
-    pass
+    XSI_TYPE = xsd_types.XSDQName('{{ targetNamespace }}', '{{ class_name }}')
 {%- endif %}
 {%- if ct.complexContent %}
     {%- if ct.complexContent.restriction %}
 class {{ ct.name|capitalize }}({{ ct.complexContent.restriction|type(known_types) }}):
+    XSI_TYPE = xsd_types.XSDQName('{{ targetNamespace }}', '{{ class_name }}')
     INHERITANCE = xsd.Inheritance.RESTRICTION
     {%- set content = ct.complexContent.restriction %}
     {%- else %}
 class {{ ct.name|capitalize }}({{ ct.complexContent.extension|type(known_types) }}):
+    XSI_TYPE = xsd_types.XSDQName('{{ targetNamespace }}', '{{ class_name }}')
     INHERITANCE = xsd.Inheritance.EXTENSION
     {%- set content = ct.complexContent.extension %}
     {%- endif %}
 {%- elif ct.sequence %}
 class {{ class_name|capitalize }}(xsd.ComplexType):
+    XSI_TYPE = xsd_types.XSDQName('{{ targetNamespace }}', '{{ class_name }}')
     INHERITANCE = None
     {%- set content = ct %}
 {%- endif %}

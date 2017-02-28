@@ -115,6 +115,8 @@ class Type(object):
     Abstract.
     '''
 
+    XSI_TYPE = None
+
     def accept(self, value):
         raise NotImplementedError
 
@@ -174,6 +176,7 @@ class SimpleType(Type):
 
 
 class String(SimpleType):
+    XSI_TYPE = XSDQName(ns.xsd, "string")
 
     # To be defined in children.
     enumeration = None
@@ -252,6 +255,7 @@ class String(SimpleType):
 
 
 class Boolean(SimpleType):
+    XSI_TYPE = XSDQName(ns.xsd, "boolean")
 
     def accept(self, value):
         if value in [True, False, None]:
@@ -288,6 +292,7 @@ class Date(SimpleType):
         http://www.w3.org/TR/2001/REC-xmlschema-2-20010502/#date
          3.2.9.2 Constraining facets
     '''
+    XSI_TYPE = XSDQName(ns.xsd, "date")
 
     YEAR_MONTH_DAY_REGEX = re.compile(r'''
         ^(\-)?
@@ -356,6 +361,7 @@ class DateTime(SimpleType):
     '''
     Example text value: 2001-10-26T21:32:52
     '''
+    XSI_TYPE = XSDQName(ns.xsd, "dateTime")
 
     def accept(self, value):
         if value is None:
@@ -386,6 +392,7 @@ class DateTime(SimpleType):
 
 
 class Decimal(SimpleType):
+    XSI_TYPE = XSDQName(ns.xsd, "decimal")
 
     def __init__(self, enumeration=None, fractionDigits=None, maxExclusive=None,
                  maxInclusive=None, minExclusive=None, minInclusive=None,
@@ -465,6 +472,7 @@ class Decimal(SimpleType):
 
 
 class Double(Decimal):
+    XSI_TYPE = XSDQName(ns.xsd, "double")
 
     def __init__(self, enumeration=None, maxExclusive=None, maxInclusive=None,
                  minExclusive=None, minInclusive=None, pattern=None):
@@ -475,6 +483,7 @@ class Double(Decimal):
 
 
 class Float(Decimal):
+    XSI_TYPE = XSDQName(ns.xsd, "float")
 
     def __init__(self, enumeration=None, maxExclusive=None, maxInclusive=None,
                  minExclusive=None, minInclusive=None, pattern=None):
@@ -485,6 +494,7 @@ class Float(Decimal):
 
 
 class Integer(Decimal):
+    XSI_TYPE = XSDQName(ns.xsd, "integer")
 
     def __init__(self, enumeration=None, maxExclusive=None,
                  maxInclusive=None, minExclusive=None, minInclusive=None,
@@ -508,6 +518,7 @@ class Integer(Decimal):
 
 
 class Long(Integer):
+    XSI_TYPE = XSDQName(ns.xsd, "long")
 
     def __init__(self, enumeration=None, maxExclusive=None,
                  maxInclusive=9223372036854775807, minExclusive=None, minInclusive=-9223372036854775808,
@@ -518,6 +529,7 @@ class Long(Integer):
 
 
 class Int(Long):
+    XSI_TYPE = XSDQName(ns.xsd, "int")
 
     def __init__(self, enumeration=None, maxExclusive=None,
                  maxInclusive=2147483647, minExclusive=None, minInclusive=-2147483648,
@@ -1166,11 +1178,11 @@ class Document(ComplexType):
 
 
 class UnsignedLong(Long):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "unsignedLong")
 
 
 class UnsignedInt(Int):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "unsignedInt")
 
 
 class List(SimpleType):
@@ -1178,10 +1190,12 @@ class List(SimpleType):
 
 
 class AnyURI(String):
+    XSI_TYPE = XSDQName(ns.xsd, "anyURI")
     pass
 
 
 class QName(SimpleType):
+    XSI_TYPE = XSDQName(ns.xsd, "QName")
     NCNAME_REGEX = re.compile(r"[a-zA-Z_][\w\.-]*$")
 
     def accept(self, value):
@@ -1254,31 +1268,31 @@ class NMTOKENS(String):
 
 
 class AnyType(Type):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "anyType")
 
 
 class Base64Binary(String):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "base64Binary")
 
 
 class Duration(String):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "duration")
 
 
 class UnsignedShort(Int):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "unsignedShort")
 
 
 class UnsignedByte(UnsignedShort):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "unsignedByte")
 
 
 class Short(Int):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "short")
 
 
 class Byte(Short):
-    pass
+    XSI_TYPE = XSDQName(ns.xsd, "byte")
 
 
 class Schema(object):

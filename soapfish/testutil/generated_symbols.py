@@ -21,9 +21,9 @@ __all__ = ['generated_symbols', 'import_code']
 
 
 def generated_symbols(code):
-    from soapfish import xsd  # import may not be generated.
+    from soapfish import xsd, xsd_types  # import may not be generated.
 
-    globals_ = {'xsd': xsd}
+    globals_ = {'xsd': xsd, 'xsd_types': xsd_types}
     globals_old = dict(globals_)
 
     try:

@@ -1,7 +1,7 @@
 {%- import 'lib' as lib with context -%}
 {%- if preamble -%}
 {{- lib.render_preamble(preamble) -}}
-from soapfish import xsd
+from soapfish import xsd, xsd_types
 {# [blank line] #}
 {# [blank line] #}
 {%- endif -%}
@@ -21,10 +21,10 @@ from soapfish import xsd
 {#- Simple Types -#}
 {%- for st in schema.simpleTypes %}
 {%- if st.restriction %}
-{{ lib.render_xsd_Restriction(st.name, st.restriction, known_types) }}
+{{ lib.render_xsd_Restriction(st.name, st.restriction, known_types, schema.targetNamespace) }}
 {%- endif %}
 {%- if st.list %}
-{{ lib.render_xsd_List(st.name, known_types) }}
+{{ lib.render_xsd_List(st.name, known_types, schema.targetNamespace) }}
 {%- endif %}
 {%- do known_types.append(st.name|capitalize) %}
 {%- endfor %}
@@ -38,12 +38,12 @@ from soapfish import xsd
 {%- endfor %}
 {#- Complex Types -#}
 {% for ct in schema.complexTypes -%}
-{{ lib.render_complexType(ct.name, ct, known_types) }}
+{{ lib.render_complexType(ct.name, ct, known_types, schema.targetNamespace) }}
 {%- do known_types.append(ct.name|capitalize) -%}
 {%- endfor %}
 {#- Complex Types (Defined in Elements) -#}
 {% for element in schema.elements if element.complexType -%}
-{{ lib.render_complexType(element.name, element.complexType, known_types) }}
+{{ lib.render_complexType(element.name, element.complexType, known_types, schema.targetNamespace) }}
 {%- endfor %}
 {{ lib.render_Schema(schema, location, known_types) }}
 {#- vim:set et ft=django nowrap sts=4 sw=4 ts=4: -#}
