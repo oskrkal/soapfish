@@ -694,8 +694,21 @@ class Element(object):
             return '%s<%s>' % (self.__class__.__name__, self._type.__class__.__name__)
 
     def _render_value(self, xmlelement, value, namespace, elementFormDefault):
+        self._render_xsi_type(xmlelement, value)
         render = value.render if hasattr(value, "render") else self._type.render
         render(xmlelement, value, namespace, elementFormDefault)
+
+    def _render_xsi_type(self, xmlelement, value):
+        value_xsi_type = self._get_value_xsi_type(value)
+        if value_xsi_type and value_xsi_type != self._type.XSI_TYPE:
+            QName().render_attribute(xmlelement, '{%s}type' % ns.xsi, value_xsi_type)
+
+    @staticmethod
+    def _get_value_xsi_type(value):
+        if hasattr(value, "XSI_TYPE"):
+            return value.XSI_TYPE
+        else:
+            return None
 
 
 class ClassNamedElement(Element):

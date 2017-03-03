@@ -106,6 +106,19 @@ class ComplexTypeWithNSTest(unittest.TestCase):
         assert_true(uuid is not None and uuid.text == "1234-aedf-5678", message=actual_xml_msg)
         assert_true(flightNumber is not None and flightNumber.text == "FL-1234", message=actual_xml_msg)
 
+    def test_render_complex_type_adds_xsi_type_for_values_of_derived_types(self):
+        query = Query(searchRequest=FlightSearch(uuid="1234-aedf-5678", flightNumber="FL-1234"))
+        nsmap = {"bs": URN_BASE, "fs": URN_FLIGHTS}
+
+        xmlelement = etree.Element("query", nsmap=nsmap)
+        query.render(xmlelement, query)
+        actual_xml_msg = "Actual xml: " + etree.tounicode(xmlelement, pretty_print=True)
+
+        searchRequest = xmlelement.find("./{%(bs)s}searchRequest" % nsmap)
+        searchRequest_xsi_type = searchRequest.get("{%s}type" % ns.xsi)
+
+        assert_equals("fs:flightSearch", searchRequest_xsi_type, message=actual_xml_msg)
+
     def test_tagname_parsexml(self):
         class TestType(xsd.ComplexType):
             foo = xsd.Element(xsd.String, tagname='bar')
