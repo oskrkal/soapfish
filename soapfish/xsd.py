@@ -677,7 +677,7 @@ class Element(object):
         if value == NIL:
             xmlelement.set('{%s}nil' % ns.xsi, 'true')
         else:
-            self._type.render(xmlelement, value, namespace, elementFormDefault)
+            self._render_value(xmlelement, value, namespace, elementFormDefault)
 
     def parse(self, instance, field_name, xmlelement):
         self._evaluate_type()
@@ -692,6 +692,10 @@ class Element(object):
             return '%s<%s>' % (self.__class__.__name__, self._type)
         else:
             return '%s<%s>' % (self.__class__.__name__, self._type.__class__.__name__)
+
+    def _render_value(self, xmlelement, value, namespace, elementFormDefault):
+        render = value.render if hasattr(value, "render") else self._type.render
+        render(xmlelement, value, namespace, elementFormDefault)
 
 
 class ClassNamedElement(Element):
@@ -716,8 +720,11 @@ class ClassNamedElement(Element):
             tagname = '{%s}%s' % (namespace, tagname)
 
         xmlelement = self._create_and_append_element(tagname, parent)
-        self._type.render(xmlelement, value, namespace=namespace,
-                          elementFormDefault=value.SCHEMA.elementFormDefault)
+        if value == NIL:
+            xmlelement.set('{%s}nil' % ns.xsi, 'true')
+        else:
+            self._render_value(xmlelement, value, namespace=namespace,
+                               elementFormDefault=value.SCHEMA.elementFormDefault)
 
 
 class Attribute(Element):
@@ -806,7 +813,7 @@ class Ref(Element):
         else:
             tagname = field_name
         ref_element = self._create_and_append_element(tagname, parent)
-        self._type.render(ref_element, value, namespace, elementFormDefault)
+        self._render_value(ref_element, value, namespace, elementFormDefault)
 
 
 class Content(Ref):
@@ -885,7 +892,7 @@ class ListElement(Element):
             if item == NIL:
                 xmlelement.set('{%s}nil' % ns.xsi, 'true')
             else:
-                self._type.render(xmlelement, item, namespace, elementFormDefault)
+                self._render_value(xmlelement, item, namespace, elementFormDefault)
 
     def parse(self, instance, field_name, xmlelement):
         self._evaluate_type()
@@ -920,6 +927,22 @@ class ComplexTypeMetaInfo(object):
         self.groups = sorted(self.groups, key=lambda f: f._creation_number)
         self.allelements = sorted(self.fields + self.groups, key=lambda f: f._creation_number)
         self.all = sorted(self.fields + self.groups + self.attributes, key=lambda f: f._creation_number)
+        self.source_types = self._source_types_mapping(self.cls, self.all)
+
+    @staticmethod
+    def _source_types_mapping(complex_type, elems_and_attrs):
+        """
+        Maps complex type member elements and attributes to a ComplexType
+        where they were first defined.
+        :param complex_type: current complex type
+        :param elems_and_attrs: list of all member elements and attributes
+        :return: member name to source class mapping
+        """
+        base_meta = getattr(complex_type.__base__, "_meta", None)
+        base_member_mapping = base_meta.source_types if base_meta is not None else dict()
+        new_member_mapping = dict((item._name, complex_type) for item in elems_and_attrs if item._name not in base_member_mapping)
+        new_member_mapping.update(base_member_mapping)
+        return new_member_mapping
 
 
 class Complex_PythonType(type):
@@ -1016,13 +1039,15 @@ class ComplexType(six.with_metaclass(Complex_PythonType, Type)):
             return None
         if self.SCHEMA:
             namespace = self.SCHEMA.targetNamespace
+            elementFormDefault = self.SCHEMA.elementFormDefault
         for field in instance._meta.all:
+            field_namespace, field_form_default = self._get_field_namespace_and_form(field, namespace, elementFormDefault)
             field.render(
                 parent=parent,
                 field_name=field.tagname or field._name,
                 value=getattr(instance, field._name),
-                namespace=namespace,
-                elementFormDefault=elementFormDefault)
+                namespace=field_namespace,
+                elementFormDefault=field_form_default)
 
     @classmethod
     def _find_field(cls, fields, name):
@@ -1038,6 +1063,17 @@ class ComplexType(six.with_metaclass(Complex_PythonType, Type)):
             if field.tagname == field_name or field._name == field_name:
                 return field
         raise ValueError("Field not found '%s', fields: %s" % (field_name, fields))
+
+    @classmethod
+    def _get_field_namespace_and_form(cls, field, default_namespace=None, default_form=None):
+        source_class = cls._meta.source_types.get(field._name)
+        if source_class and source_class.SCHEMA:
+            schema_namespace = source_class.SCHEMA.targetNamespace
+            schema_form = source_class.SCHEMA.elementFormDefault
+        else:
+            schema_namespace = None
+            schema_form = None
+        return (schema_namespace or default_namespace), (schema_form or default_form)
 
     @classmethod
     def _is_matching_element(cls, field, xmlelement):

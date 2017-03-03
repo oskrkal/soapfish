@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from . import namespaces as ns, soap11, xsd
+from . import namespaces as ns, xsd
 
 ENVELOPE_NAMESPACE = ns.soap12_envelope
 BINDING_NAMESPACE = ns.wsdl_soap12
@@ -30,8 +30,21 @@ def parse_fault_message(fault):
     return fault.Code.Value, fault.Reason.Text, fault.Role
 
 
-class Header(soap11.Header):
-    pass
+class Header(xsd.ComplexType):
+    '''
+    SOAP Envelope Header.
+    '''
+    # NOTE: implementation was copied from soap11.Header; it could not be inherited, because
+    # Header type in SOAP 1.2 scheme actually does not extend Header from SOAP 1.1
+    def accept(self, value):
+        return value
+
+    def parse_as(self, ContentType):
+        return ContentType.parse_xmlelement(self._xmlelement)
+
+    def render(self, parent, instance, namespace=None, elementFormDefault=None):
+        return super(Header, self).render(parent, instance, namespace=instance.SCHEMA.targetNamespace,
+                                          elementFormDefault=elementFormDefault)
 
 
 class Code(xsd.ComplexType):
@@ -60,12 +73,22 @@ class Fault(xsd.ComplexType):
     Role = xsd.Element(xsd.String, minOccurs=0)
 
 
-class Body(soap11.Body):
+class Body(xsd.ComplexType):
     '''
     SOAP Envelope Body.
     '''
+    # NOTE: implementation was copied from soap11.Body; it could not be inherited, because
+    # Body type in SOAP 1.2 scheme actually does not extend Body from SOAP 1.1. If soap12.Body
+    # was derived from soap11.Body, the message and Fault elements would be in soap11 namespace
+    # which is incorrect.
     message = xsd.ClassNamedElement(xsd.NamedType, minOccurs=0)
     Fault = xsd.Element(Fault, minOccurs=0)
+
+    def parse_as(self, ContentType):
+        return ContentType.parse_xmlelement(self._xmlelement[0])
+
+    def content(self):
+        return self._xmlelement[0]
 
 
 class Envelope(xsd.ComplexType):

@@ -251,7 +251,7 @@ class SOAPDispatcherTest(PythonicTestCase):
         request = SOAPRequest(dict(SOAPACTION='echo', REQUEST_METHOD='POST'), request_message)
         response = dispatcher.dispatch(request)
         self.assert_is_successful_response(response, handler_state)
-        assert_contains(b'<ns0:OutputVersion>42</ns0:OutputVersion>', response.http_content)
+        assert_contains(b'<OutputVersion>42</OutputVersion>', response.http_content)
 
     def test_can_handle_empty_output_header(self):
         handler, handler_state = echo_handler()

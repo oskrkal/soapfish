@@ -28,11 +28,11 @@ class XSDSpecElementTest(PythonicTestCase):
         # WARN: this test is fragile, it relies on how lxml library renders XML
         expected_xml = (
             b'<element name="versionNumber">\n'
-            b'  <simpleType>\n'
-            b'    <restriction xmlns:xs="http://www.w3.org/2001/XMLSchema" base="xs:string">\n'
-            b'      <pattern value="\d{2}\.\d{1,2}"/>\n'
-            b'    </restriction>\n'
-            b'  </simpleType>\n'
+            b'  <xs:simpleType xmlns:xs="http://www.w3.org/2001/XMLSchema">\n'
+            b'    <xs:restriction base="xs:string">\n'
+            b'      <xs:pattern value="\d{2}\.\d{1,2}"/>\n'
+            b'    </xs:restriction>\n'
+            b'  </xs:simpleType>\n'
             b'</element>\n'
         )
         assert_equals(expected_xml, element.xml('element'))
