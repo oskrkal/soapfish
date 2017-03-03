@@ -3,7 +3,7 @@ import unittest
 from lxml import etree
 from pythonic_testcase import assert_contains
 
-from soapfish import soap11, soap12, wsa, xsd
+from soapfish import namespaces as ns, soap11, soap12, wsa, xsd, xsd_types
 from soapfish.py2xsd import generate_xsd
 
 
@@ -220,11 +220,11 @@ class SOAP12_Test(SOAP_TBase, unittest.TestCase):
         envelope = self.SOAP.Envelope.parsexml(self.ENVELOPE_XML.format('', SOAP12_FAULT).encode('utf8'))
         code, message, actor = self.SOAP.parse_fault_message(envelope.Body.Fault)
         self.assertEqual(message, 'Server was unable to process request. Go away.')
-        self.assertEqual(code, 'soap:Receiver')
+        self.assertEqual(code, xsd_types.XSDQName(ns.soap12_envelope, 'Receiver'))
 
     def test_render_fault(self):
-        xml = self.SOAP.Envelope.error_response('soap:Sender', 'Go away.')
+        xml = self.SOAP.Envelope.error_response(xsd_types.XSDQName(ns.soap12_envelope, 'Sender'), 'Go away.')
         envelope = self.SOAP.Envelope.parsexml(xml)
         code, message, actor = self.SOAP.parse_fault_message(envelope.Body.Fault)
         self.assertEqual(message, 'Go away.')
-        self.assertEqual(code, 'soap:Sender')
+        self.assertEqual(code, xsd_types.XSDQName(ns.soap12_envelope, 'Sender'))

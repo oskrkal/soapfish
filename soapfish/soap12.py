@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from . import namespaces as ns, xsd
+from . import namespaces as ns, xsd, xsd_types
 
 ENVELOPE_NAMESPACE = ns.soap12_envelope
 BINDING_NAMESPACE = ns.wsdl_soap12
@@ -48,9 +48,9 @@ class Header(xsd.ComplexType):
 
 
 class Code(xsd.ComplexType):
-    CLIENT = 'ns0:Sender'
-    SERVER = 'ns0:Receiver'
-    Value = xsd.Element(xsd.String)
+    CLIENT = xsd_types.XSDQName(ENVELOPE_NAMESPACE, 'Sender')
+    SERVER = xsd_types.XSDQName(ENVELOPE_NAMESPACE, 'Receiver')
+    Value = xsd.Element(xsd.QName)
 
 
 class LanguageString(xsd.String):

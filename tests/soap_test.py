@@ -3,7 +3,7 @@ import unittest
 from lxml import etree
 from pythonic_testcase import assert_equals, assert_none, assert_raises
 
-from soapfish import core, soap, soap11, soap12
+from soapfish import core, namespaces as ns, soap, soap11, soap12, xsd_types
 
 
 SOAP11_ERROR_MESSAGE = """
@@ -99,14 +99,14 @@ class ErrorHandling(unittest.TestCase):
     def test_soap12_actor_parsing(self):
         envelope = soap12.Envelope.parsexml(SOAP12_ERROR_ROLE)
         code, message, actor = soap12.parse_fault_message(envelope.Body.Fault)
-        assert_equals('env:Sender', code)
+        assert_equals(xsd_types.XSDQName(ns.soap12_envelope, 'Sender'), code)
         assert_equals('\nMessage does not have necessary info\n', message)
         assert_equals('http://gizmos.com/order', actor)
 
     def test_soap12_noactor_parsing(self):
         envelope = soap12.Envelope.parsexml(SOAP12_ERROR_NOROLE)
         code, message, actor = soap12.parse_fault_message(envelope.Body.Fault)
-        assert_equals('env:Sender', code)
+        assert_equals(xsd_types.XSDQName(ns.soap12_envelope, 'Sender'), code)
         assert_equals('\nMessage does not have necessary info\n', message)
         assert_none(actor)
 
@@ -122,7 +122,7 @@ class ErrorHandling(unittest.TestCase):
         stub = soap.Stub(location='empty', service=service)
 
         e = assert_raises(core.SOAPError, lambda: stub._handle_response(None, None, SOAP12_ERROR_ROLE))
-        assert_equals('env:Sender', e.code)
+        assert_equals(xsd_types.XSDQName(ns.soap12_envelope, 'Sender'), e.code)
         assert_equals('\nMessage does not have necessary info\n', e.message)
         assert_equals('http://gizmos.com/order', e.actor)
 
