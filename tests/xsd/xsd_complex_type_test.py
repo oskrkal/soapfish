@@ -1,7 +1,7 @@
 import unittest
-from pythonic_testcase import assert_equals, assert_not_none, assert_true
+from pythonic_testcase import assert_equals, assert_not_none, assert_true, assert_isinstance
 from lxml import etree
-from soapfish import xsd, xsdspec, xsd_types, namespaces as ns
+from soapfish import xsd, xsdspec, xsd_types, xsityperesolve, namespaces as ns
 
 
 # Test schema definition ------------------------
@@ -16,6 +16,7 @@ class BaseRequest(xsd.ComplexType):
 
 
 class Query(xsd.ComplexType):
+    XSI_TYPE = xsd_types.XSDQName(URN_BASE, "query")
     maxRows = xsd.Attribute(xsd.Integer, default=20)
     searchRequest = xsd.Element(BaseRequest)
 
@@ -53,6 +54,7 @@ PERSON_SCHEMA = xsd.Schema(URN_PERSON,
                            complexTypes=[Person])
 
 FLIGHT_SCHEMA = xsd.Schema(URN_FLIGHTS,
+                           imports=[BASE_SCHEMA, PERSON_SCHEMA],
                            elementFormDefault=xsd.ElementFormDefault.QUALIFIED,
                            complexTypes=[Airport, FlightSearch, Pilot])
 
@@ -118,6 +120,18 @@ class ComplexTypeWithNSTest(unittest.TestCase):
         searchRequest_xsi_type = searchRequest.get("{%s}type" % ns.xsi)
 
         assert_equals("fs:flightSearch", searchRequest_xsi_type, message=actual_xml_msg)
+
+    def test_complex_type_can_parse_element_value_of_derived_type(self):
+        xmlelement = etree.fromstring('<query xmlns:bs="%(bs)s" xmlns:fs="%(fs)s" xmlns:xsi="%(xsi)s">\n'
+                                      '  <bs:searchRequest xsi:type="fs:flightSearch">\n'
+                                      '    <bs:uuid>123ab-45678-def</bs:uuid>\n'
+                                      '    <fs:flightNumber>EK-412</fs:flightNumber>\n'
+                                      '  </bs:searchRequest>\n'
+                                      '</query>' % dict(bs=URN_BASE, fs=URN_FLIGHTS, xsi=ns.xsi))
+        query = Query.parse_xmlelement(xmlelement, type_resolver=xsityperesolve.XSITypeResolver([FLIGHT_SCHEMA]))
+        query_as_str = str(query)
+        assert_isinstance(query.searchRequest, FlightSearch, message=query_as_str)
+        assert_equals("EK-412", query.searchRequest.flightNumber, message=query_as_str)
 
     def test_tagname_parsexml(self):
         class TestType(xsd.ComplexType):

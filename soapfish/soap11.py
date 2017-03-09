@@ -42,8 +42,8 @@ class Header(xsd.ComplexType):
     def accept(self, value):
         return value
 
-    def parse_as(self, ContentType):
-        return ContentType.parse_xmlelement(self._xmlelement)
+    def parse_as(self, ContentType, type_resolver=None):
+        return ContentType.parse_xmlelement(self._xmlelement, type_resolver=type_resolver)
 
     def render(self, parent, instance, namespace=None, elementFormDefault=None):
         return super(Header, self).render(parent, instance, namespace=instance.SCHEMA.targetNamespace,
@@ -66,8 +66,8 @@ class Body(xsd.ComplexType):
     message = xsd.ClassNamedElement(xsd.NamedType, minOccurs=0)
     Fault = xsd.Element(Fault, minOccurs=0)
 
-    def parse_as(self, ContentType):
-        return ContentType.parse_xmlelement(self._xmlelement[0])
+    def parse_as(self, ContentType, type_resolver=None):
+        return ContentType.parse_xmlelement(self._xmlelement[0], type_resolver=type_resolver)
 
     def content(self):
         return self._xmlelement[0]

@@ -67,7 +67,7 @@ class SOAPDispatcher(object):
         SOAP = self.service.version
         try:
             # note : no validation is performed
-            envelope = SOAP.Envelope.parsexml(xml)
+            envelope = SOAP.Envelope.parsexml(xml, type_resolver=self.service.type_resolver)
         except etree.XMLSyntaxError as e:
             raise SOAPError(SOAP.Code.CLIENT, repr(e))
         # Actually this is more a stopgap measure than a real fix. The real
@@ -112,16 +112,16 @@ class SOAPDispatcher(object):
         if soap_header is None:
             return None
         if handler.input_header:
-            return soap_header.parse_as(handler.input_header)
+            return soap_header.parse_as(handler.input_header, type_resolver=self.service.type_resolver)
         elif self.service.input_header:
-            return soap_header.parse_as(self.service.input_header)
+            return soap_header.parse_as(self.service.input_header, type_resolver=self.service.type_resolver)
 
     def _parse_input(self, method, message):
         input_parser = method.input
         if isinstance(method.input, six.string_types):
             element = self.service.find_element_by_name(method.input)
             input_parser = element._type
-        return input_parser.parse_xmlelement(message)
+        return input_parser.parse_xmlelement(message, type_resolver=self.service.type_resolver)
 
     def _validate_response(self, return_object, tagname):
         # XXX: Lookup of schema is untested as method not currently in use.

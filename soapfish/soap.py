@@ -8,7 +8,7 @@ import logging
 import requests
 import six
 
-from . import core, namespaces as ns, soap11, soap12, wsa
+from . import core, namespaces as ns, soap11, soap12, wsa, xsityperesolve
 from .utils import uncapitalize
 
 SOAP_HTTP_Transport = ns.wsdl_soap_http
@@ -72,6 +72,7 @@ class Service(object):
             output_header = wsa.WSAHeader
         self.input_header = input_header
         self.output_header = output_header
+        self.type_resolver = xsityperesolve.XSITypeResolver(schemas)
 
     def get_method(self, operationName):
         return tuple(filter(lambda m: m.operationName == operationName, self.methods))[0]
@@ -120,10 +121,10 @@ class Stub(object):
 
     def _handle_response(self, method, http_headers, content):
         soap = self.service.version
-        envelope = soap.Envelope.parsexml(content)
+        envelope = soap.Envelope.parsexml(content, type_resolver=self.service.type_resolver)
 
         if envelope.Header and method and method.output_header:
-            response_header = envelope.Header.parse_as(method.output_header)
+            response_header = envelope.Header.parse_as(method.output_header, type_resolver=self.service.type_resolver)
         else:
             response_header = None
 
@@ -137,7 +138,7 @@ class Stub(object):
         else:
             _type = method.output
 
-        body = envelope.Body.parse_as(_type)
+        body = envelope.Body.parse_as(_type, type_resolver=self.service.type_resolver)
         return core.SOAPResponse(body, soap_header=response_header)
 
     def call(self, operationName, parameter, header=None):

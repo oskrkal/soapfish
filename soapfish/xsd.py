@@ -120,10 +120,10 @@ class Type(object):
     def accept(self, value):
         raise NotImplementedError
 
-    def parse_xmlelement(self, xmlelement):
+    def parse_xmlelement(self, xmlelement, type_resolver=None):
         raise NotImplementedError
 
-    def parsexml(self, xml):
+    def parsexml(self, xml, type_resolver=None):
         raise NotImplementedError
 
     def render(self, parent, value):
@@ -141,7 +141,7 @@ class SimpleType(Type):
     def render_attribute(self, parent, name, value):
         parent.set(name, self.xmlvalue(value, parent))
 
-    def parse_xmlelement(self, xmlelement):
+    def parse_xmlelement(self, xmlelement, type_resolver=None):
         return self.pythonvalue(xmlelement.text, xmlelement)
 
     def parse_attribute(self, xmlelement, field_name, default=None):
@@ -679,12 +679,9 @@ class Element(object):
         else:
             self._render_value(xmlelement, value, namespace, elementFormDefault)
 
-    def parse(self, instance, field_name, xmlelement):
+    def parse(self, instance, field_name, xmlelement, type_resolver=None):
         self._evaluate_type()
-        if xmlelement.get('{%s}nil' % ns.xsi) == 'true':
-            value = NIL
-        else:
-            value = self._type.parse_xmlelement(xmlelement)
+        value = self._parse_value(xmlelement, type_resolver)
         setattr(instance, field_name, value)
 
     def __repr__(self):
@@ -692,6 +689,21 @@ class Element(object):
             return '%s<%s>' % (self.__class__.__name__, self._type)
         else:
             return '%s<%s>' % (self.__class__.__name__, self._type.__class__.__name__)
+
+    def _parse_value(self, xmlelement, type_resolver):
+        if xmlelement.get('{%s}nil' % ns.xsi) == 'true':
+            value = NIL
+        else:
+            value_type = self._parse_value_type(xmlelement, type_resolver)
+            value = value_type.parse_xmlelement(xmlelement, type_resolver)
+        return value
+
+    def _parse_value_type(self, xmlelement, type_resolver):
+        xsi_type = QName().parse_attribute(xmlelement, '{%s}type' % ns.xsi)
+        value_type = type_resolver.find_type(xsi_type) if type_resolver and xsi_type else None
+        if value_type is not None and not isinstance(value_type, Type):
+            value_type = value_type()
+        return value_type if value_type is not None else self._type
 
     def _render_value(self, xmlelement, value, namespace, elementFormDefault):
         self._render_xsi_type(xmlelement, value)
@@ -775,7 +787,7 @@ class Attribute(Element):
         else:
             self._type.render_attribute(parent, field_name, value)
 
-    def parse(self, instance, field_name, xmlelement):
+    def parse(self, instance, field_name, xmlelement, type_resolver=None):
         self._evaluate_type()
         value = self._type.parse_attribute(xmlelement, field_name, default=self.default)
         setattr(instance, field_name, value)
@@ -843,6 +855,9 @@ class TypedList(list):
         super(TypedList, self).__init__()
         self._list = element
 
+    def __str__(self):
+        return "[{0}]".format(", ".join(map(str, self)))
+
     def append(self, value):
         self._list._evaluate_type()
         if value == NIL:
@@ -907,12 +922,9 @@ class ListElement(Element):
             else:
                 self._render_value(xmlelement, item, namespace, elementFormDefault)
 
-    def parse(self, instance, field_name, xmlelement):
+    def parse(self, instance, field_name, xmlelement, type_resolver=None):
         self._evaluate_type()
-        if xmlelement.get('{%s}nil' % ns.xsi):
-            value = NIL
-        else:
-            value = self._type.parse_xmlelement(xmlelement)
+        value = self._parse_value(xmlelement, type_resolver)
         _list = getattr(instance, field_name)
         _list.append(value)
 
@@ -1113,11 +1125,11 @@ class ComplexType(six.with_metaclass(Complex_PythonType, Type)):
         return subelements
 
     @classmethod
-    def parse_xmlelement(cls, xmlelement):
+    def parse_xmlelement(cls, xmlelement, type_resolver=None):
         instance = cls()
         instance._xmlelement = xmlelement
         for attribute in instance._meta.attributes:
-            attribute.parse(instance, attribute._name, xmlelement)
+            attribute.parse(instance, attribute._name, xmlelement, type_resolver=type_resolver)
 
         is_choice = (instance._meta.cls.INDICATOR == Choice)
         for field in instance._meta.fields:
@@ -1128,12 +1140,12 @@ class ComplexType(six.with_metaclass(Complex_PythonType, Type)):
             else:
                 subelements = cls._find_subelement(field, xmlelement)
             for subelement in subelements:
-                field.parse(instance, field._name, subelement)
+                field.parse(instance, field._name, subelement, type_resolver=type_resolver)
             if is_choice:
                 break
 
         for group in instance._meta.groups:
-            group.parse(instance, group._name, xmlelement)
+            group.parse(instance, group._name, xmlelement, type_resolver=type_resolver)
 
         return instance
 
@@ -1151,7 +1163,7 @@ class ComplexType(six.with_metaclass(Complex_PythonType, Type)):
         return xmlelement
 
     @classmethod
-    def parsexml(cls, xml, schema=None):
+    def parsexml(cls, xml, schema=None, type_resolver=None):
         if schema is None:
             parser = etree.fromstring
         else:
@@ -1161,7 +1173,7 @@ class ComplexType(six.with_metaclass(Complex_PythonType, Type)):
             xmlparser = etree.XMLParser(schema=schema)
             parser = functools.partial(etree.fromstring, parser=xmlparser)
         xmlelement = parser(xml)
-        return cls.parse_xmlelement(xmlelement)
+        return cls.parse_xmlelement(xmlelement, type_resolver=type_resolver)
 
     def xml(self, tagname, namespace=None, elementFormDefault=None, schema=None, pretty_print=True):
         if namespace:
@@ -1220,10 +1232,10 @@ class Document(ComplexType):
 
     # TODO: Add schema support.
     @classmethod
-    def parsexml(cls, xml):
+    def parsexml(cls, xml, type_resolver=None):
         field = cls._meta.fields[0]  # The only field.
         xmlelement = etree.fromstring(xml)
-        field.parse(cls, field._name, xmlelement)
+        field.parse(cls, field._name, xmlelement, type_resolver=type_resolver)
 
 
 class UnsignedLong(Long):
