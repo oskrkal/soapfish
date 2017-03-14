@@ -1,0 +1,12 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="urn:erss" targetNamespace="urn:erss" elementFormDefault="unqualified">
+    <xs:element name="date" type="xs:date"/>
+    <xs:element name="takeoffAirport" type="xs:string"/>
+
+    <xs:complexType name="search">
+        <xs:sequence>
+            <xs:element name="id" type="xs:integer"/>
+            <xs:element ref="tns:date"/>
+            <xs:element ref="tns:takeoffAirport" minOccurs="0" maxOccurs="3"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>

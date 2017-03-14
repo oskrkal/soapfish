@@ -1,0 +1,12 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:elementref" elementFormDefault="qualified"
+           xmlns:be="urn:baseelement">
+    <xs:import namespace="urn:baseelement" schemaLocation="baseelement.xsd"/>
+
+    <xs:complexType name="flightType">
+        <xs:sequence>
+            <xs:element ref="be:takeoffAirport"/>
+            <xs:element ref="be:landingAirport" minOccurs="0"/>
+            <xs:element ref="be:pilot" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>

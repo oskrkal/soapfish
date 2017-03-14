@@ -86,7 +86,8 @@ class {{ name|capitalize }}({{ restriction|type(known_types) }}):
 {# [blank line] #}
 {%- endmacro %}
 
-{% macro render_complexType(class_name, content, known_types=None, targetNamespace=None) -%}
+{% macro render_complexType(class_name, content, known_types=None, schema=None, resolver=None) -%}
+{%- set targetNamespace = schema.targetNamespace if schema is not none else none %}
 {%- set ct = content %}
 {%- if not ct.sequence and not ct.complexContent %}
 class {{ class_name|capitalize }}(xsd.ComplexType):
@@ -128,7 +129,7 @@ class {{ class_name|capitalize }}(xsd.ComplexType):
     {{ attrGroupRef.ref|remove_namespace }} = xsd.Ref({{ attrGroupRef.ref|type(known_types) }})
 {%- endfor %}
 {%- for element in elements -%}
-    {{ render_xsd_element(element, known_types) }}
+    {{ render_xsd_element(element, known_types, schema, resolver) }}
 {%- endfor %}
 {%- if content.sequence %}
 {{ render_create_method(elements, known_types) }}
@@ -137,7 +138,7 @@ class {{ class_name|capitalize }}(xsd.ComplexType):
 {# blank line #}
 {%- endmacro %}
 
-{% macro render_xsd_element(element, known_types=None) -%}
+{% macro render_xsd_element(element, known_types=None, schema=None, resolver=None) -%}
     {%- set field_type = 'ListElement' if element.maxOccurs and element.maxOccurs > 1 else 'Element' %}
     {%- if element.type %}
     {{ element.name|fix_keyword }} = xsd.{{ field_type }}({{ element|type(known_types) }}{% if element.name in keywords or element.maxOccurs and element.maxOccurs > 1 %}, tagname='{{ element.name }}'{% endif %}{% if element.minOccurs is not none %}, minOccurs={{ element.minOccurs|upper }}{% endif %}{% if element.maxOccurs and element.maxOccurs > 1 %}, maxOccurs={{ element.maxOccurs|max_occurs }}{% endif %}{% if element.nillable %}, nillable=True{% endif %})
@@ -161,7 +162,15 @@ class {{ class_name|capitalize }}(xsd.ComplexType):
     {%- if element.simpleType.restriction.whiteSpace %}whiteSpace={{ element.simpleType.restriction.whiteSpace.value }},{% endif %}))
     {%- endif %}
     {%- if element.ref %}
-    {{ element.ref|remove_namespace }} = xsd.Ref({{ element|type(known_types) }})
+    {%- set element_ref_name = element.ref|remove_namespace %}
+    {%- set schema_with_element = find_schema_with_element(schema, element.ref, resolver) %}
+    {%- if schema_with_element is sameas schema %}
+    {%- for e in schema.elements if e.name == element_ref_name %}
+    {{ e.name|fix_keyword }} = xsd.{{ field_type }}({{ e|type(known_types) }}, tagname='{{ e.name }}'{% if element.minOccurs is not none %}, minOccurs={{ element.minOccurs|upper }}{% endif %}{% if element.maxOccurs and element.maxOccurs > 1 %}, maxOccurs={{ element.maxOccurs|max_occurs }}{% endif %}{% if e.nillable %}, nillable=True{% endif %}, namespace="{{ schema.targetNamespace or 'None' }}")
+    {%- endfor %}
+    {%- elif schema_with_element is not none %}
+    {{ element_ref_name }} = xsd.RefElement(Schema_{{ schema_name(schema_with_element) }}.get_element_by_name('{{ element_ref_name }}'){% if element.minOccurs is not none %}, minOccurs={{ element.minOccurs|upper }}{% endif %}{% if element.maxOccurs and element.maxOccurs > 1 %}, maxOccurs={{ element.maxOccurs|max_occurs }}{% endif %})
+    {%- endif %}
     {%- endif %}
 {%- endmacro %}
 

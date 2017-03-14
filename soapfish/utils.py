@@ -84,6 +84,24 @@ def schema_select(schemas, parts, resolver=None):
     return selected
 
 
+def find_schema_with_element(schema, element_qname, resolver=None, base_path=None):
+    namespace, localname = element_qname
+
+    def has_name(element):
+        return element and element.name == localname
+    selected_schema = schema if schema.targetNamespace == namespace and filter(has_name, schema.elements) else None
+
+    if selected_schema is None and resolver is not None:
+        for s in itertools.chain(schema.includes, schema.imports):
+            resolved_schema = resolver(schema_location=s.schemaLocation, namespace=s.namespace, base_path=base_path)
+            selected_schema = (find_schema_with_element(resolved_schema.schema, element_qname, resolver, resolved_schema.base_path)
+                               if resolved_schema else None)
+            if selected_schema:
+                break
+
+    return selected_schema
+
+
 def _get_element_by_name(schema, name, resolver, base_path=None):
     if hasattr(schema, "get_element_by_name"):
         return schema.get_element_by_name(name)
@@ -197,6 +215,7 @@ def get_rendering_environment(xsd_namespaces, module='soapfish'):
         },
         schema_name=schema_name,
         schema_select=schema_select,
+        find_schema_with_element=find_schema_with_element,
     )
     return env
 

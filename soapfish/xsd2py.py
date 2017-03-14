@@ -13,7 +13,7 @@ import sys
 import six
 from lxml import etree
 
-from . import xsdspec, xsd_types
+from . import xsdspec, xsd_types, xsdresolve
 from .utils import (
     find_xsd_namespaces,
     get_rendering_environment,
@@ -177,6 +177,7 @@ def schema_to_py(schema, xsd_namespaces,
         known_types=known_types,
         location=location,
         resolve_import=resolve_import,
+        resolver=xsdresolve.XSDCachedSchemaResolver(xsdresolve.XSDSchemaResolver(base_path=cwd)),
     )
     if not standalone:
         del env.globals['preamble']

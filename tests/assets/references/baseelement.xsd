@@ -1,0 +1,24 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:baseelement" elementFormDefault="qualified"
+           xmlns:tns="urn:baseelement">
+    <xs:simpleType name="airportCode">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="LHR"/>
+            <xs:enumeration value="PRG"/>
+            <xs:enumeration value="TXL"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:element name="takeoffAirport" type="tns:airportCode"/>
+    <xs:element name="landingAirport" type="tns:airportCode"/>
+
+    <xs:complexType name="pilotType">
+        <xs:sequence>
+            <xs:element name="rank" type="xs:string"/>
+            <xs:element name="firstName" type="xs:string"/>
+            <xs:element name="lastName" type="xs:string"/>
+        </xs:sequence>
+        <xs:attribute name="suspended" type="xs:boolean" default="false" use="optional"/>
+    </xs:complexType>
+
+    <xs:element name="pilot" type="tns:pilotType"/>
+</xs:schema>

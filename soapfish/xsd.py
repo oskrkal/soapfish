@@ -669,9 +669,11 @@ class Element(object):
         if value is None:
             return
 
+        element_form = elementFormDefault
         if self.namespace is not None:
             namespace = self.namespace
-        if namespace is not None and elementFormDefault == ElementFormDefault.QUALIFIED:
+            element_form = ElementFormDefault.QUALIFIED
+        if namespace is not None and element_form == ElementFormDefault.QUALIFIED:
             field_name = '{%s}%s' % (namespace, field_name)
 
         xmlelement = self._create_and_append_element(field_name, parent)
@@ -852,8 +854,9 @@ class Content(Ref):
 
 
 class TypedList(list):
-    def __init__(self, element):
-        super(TypedList, self).__init__()
+    def __init__(self, element, iterable=None):
+        list_args = (iterable,) if iterable is not None else ()
+        super(TypedList, self).__init__(*list_args)
         self._list = element
 
     def __str__(self):
@@ -896,7 +899,7 @@ class ListElement(Element):
         self._minOccurs = minOccurs
 
     def accept(self, value):
-        return value
+        return TypedList(self, map(super(ListElement, self).accept, value))
 
     def empty_value(self):
         return TypedList(self)
@@ -909,9 +912,11 @@ class ListElement(Element):
         if self._maxOccurs and len(items) > self._maxOccurs:
             raise ValueError('For %s maxOccurs=%d but list length %d.' % (field_name, self._maxOccurs, len(items)))
 
+        element_form = elementFormDefault
         if self.namespace is not None:
             namespace = self.namespace
-        if namespace is not None and elementFormDefault == ElementFormDefault.QUALIFIED:
+            element_form = ElementFormDefault.QUALIFIED
+        if namespace is not None and element_form == ElementFormDefault.QUALIFIED:
             tagname = '{%s}%s' % (namespace, self.tagname)
         else:
             tagname = self.tagname
@@ -930,6 +935,78 @@ class ListElement(Element):
         _list.append(value)
 
 
+class RefElement(object):
+    def __init__(self, element, minOccurs=1, maxOccurs=1):
+        if minOccurs is None or maxOccurs is None:
+            raise TypeError("minOccurs and maxOccurs must be specified; got minOccurs=%s, maxOccurs=%s" % (minOccurs, maxOccurs))
+        if minOccurs < 0:
+            raise ValueError("minOccurs must be greater than or equal to zero; got %s" % minOccurs)
+        if maxOccurs < 1  or maxOccurs < minOccurs:
+            raise ValueError("maxOccurs mustn't be smaller than 1 and smaller than minOccurs; got minOccurs=%s, maxOccurs=%s" % (minOccurs, maxOccurs))
+        if element.tagname is None:
+            raise ValueError("The tagname attribute of the referenced element is not set.")
+
+        self._creation_number = Element._creation_counter
+        Element._creation_counter += 1
+        self.element = element
+        self._minOccurs = minOccurs
+        self._maxOccurs = maxOccurs
+
+    @property
+    def tagname(self):
+        return self.element.tagname
+
+    @property
+    def _type(self):
+        return self.element._type
+
+    def accept(self, value):
+        if self.is_list():
+            return TypedList(self, map(self.element.accept, value))
+        else:
+            return self.element.accept(value)
+
+    def empty_value(self):
+        if self.is_list():
+            return TypedList(self)
+        else:
+            return self.element.empty_value()
+
+    def is_list(self):
+        return self._maxOccurs is not None and self._maxOccurs > 1
+
+    def _evaluate_type(self):
+        self.element._evaluate_type()
+
+    def parse(self, instance, field_name, xmlelement, type_resolver=None):
+        if self.is_list():
+            self._parse_list_value(instance, field_name, xmlelement, type_resolver)
+        else:
+            self.element.parse(instance, field_name, xmlelement, type_resolver)
+
+    def _parse_list_value(self, instance, field_name, xmlelement, type_resolver=None):
+        self._evaluate_type()
+        value = self.element._parse_value(xmlelement, type_resolver)
+        _list = getattr(instance, field_name)
+        _list.append(value)
+
+    def render(self, parent, field_name, value, namespace=None, elementFormDefault=None):
+        render_method = self.element.render
+        if self.is_list():
+            self._render_list_value(render_method, parent, field_name, value, namespace, elementFormDefault)
+        else:
+            render_method(parent, field_name, value, namespace, elementFormDefault)
+
+    def _render_list_value(self, render_method, parent, field_name, items, namespace=None, elementFormDefault=None):
+        if self._minOccurs and len(items) < self._minOccurs:
+            raise ValueError('For %s minOccurs=%d but list length %d.' % (field_name, self._minOccurs, len(items)))
+        if self._maxOccurs and len(items) > self._maxOccurs:
+            raise ValueError('For %s maxOccurs=%d but list length %d.' % (field_name, self._maxOccurs, len(items)))
+
+        for item in items:
+            render_method(parent, field_name, item, namespace, elementFormDefault)
+
+
 class ComplexTypeMetaInfo(object):
 
     def __init__(self, cls):
@@ -945,7 +1022,7 @@ class ComplexTypeMetaInfo(object):
             elif isinstance(item, Ref):
                 item._name = attr
                 self.groups.append(item)
-            elif isinstance(item, Element):
+            elif isinstance(item, Element) or isinstance(item, RefElement):
                 item._name = attr
                 self.fields.append(item)
         self.fields = sorted(self.fields, key=lambda f: f._creation_number)
@@ -1394,11 +1471,13 @@ class Schema(object):
         self.__init_schema(self.attributeGroups)
         self.__init_schema(self.complexTypes)
 
-        for element in self.elements.values():
+        for tagname, element in six.iteritems(self.elements):
             if isinstance(element._passed_type, ComplexType):
                 element._passed_type.__class__.SCHEMA = self
             if element.namespace is None:
                 element.namespace = targetNamespace
+            if element.tagname is None:
+                element.tagname = tagname
 
         self._force_elements_type_evalution(self.complexTypes)
         self._force_elements_type_evalution(self.attributeGroups)
