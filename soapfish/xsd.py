@@ -146,10 +146,11 @@ class SimpleType(Type):
 
     def parse_attribute(self, xmlelement, field_name, default=None):
         xmlvalue = xmlelement.get(field_name)
-        if xmlvalue is None:
-            xmlvalue = default
-        return self.pythonvalue(xmlvalue, xmlelement)
-
+        if xmlvalue is not None:
+            return self.pythonvalue(xmlvalue, xmlelement)
+        else:
+            return default
+        
     def xmlvalue(self, value, dest_element):
         """
         Converts pythonic value to a corresponding XML value that can be set

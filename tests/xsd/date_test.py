@@ -3,7 +3,7 @@
 from datetime import date, datetime, timedelta, tzinfo
 
 from lxml import etree
-from pythonic_testcase import assert_equals, assert_raises
+from pythonic_testcase import assert_equals, assert_raises, assert_true
 
 from soapfish import xsd
 from soapfish.testutil import SimpleTypeTestCase
@@ -86,6 +86,17 @@ class DateTest(SimpleTypeTestCase):
         parsed_date = self._parse('2012-02-29-02:30')
         assert_equals(date(2012, 2, 29), parsed_date.as_datetime_date())
         self.assert_same_tz(FixedOffset(-2, -30, '-02:30'), parsed_date.tzinfo)
+
+    def test_parsing_attribute_using_default_value(self):
+        default_date = XSDDate(2016, 12, 31)
+        assert_equals(None, self.parse_attribute(None))
+        assert_equals(default_date, self.parse_attribute(None, default=default_date))
+        assert_equals(XSDDate(2017, 2, 1), self.parse_attribute("2017-02-01", default=default_date))
+
+    def test_rendering_attribute_using_default_value(self):
+        assert_equals(None, self.render_attribute(None))
+        assert_true(self.render_attribute(None, default=XSDDate(2016, 12, 31)) in [None, "2016-12-31"])
+        assert_equals("2017-02-01", self.render_attribute(XSDDate(2017, 2, 1), default=XSDDate(2016, 12, 31)))
 
     # --- custom assertions ---------------------------------------------------
     def assert_same_tz(self, tz, other_tz):

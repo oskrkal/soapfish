@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import iso8601
 from lxml import etree
-from pythonic_testcase import assert_equals, assert_raises
+from pythonic_testcase import assert_equals, assert_raises, assert_true
 
 from soapfish import xsd, xsdspec, xsd_types
 
@@ -183,6 +183,25 @@ class BooleanTypeTest(unittest.TestCase):
         expected_xml = b"""<complexType mixed="nil"/>\n"""
         xml = etree.tostring(xmlelement, pretty_print=True)
         self.assertEqual(expected_xml, xml)
+
+    def test_parse_attribute_with_default_value(self):
+        class CT(xsd.ComplexType):
+            mixed = xsd.Attribute(xsd.Boolean, default=False, use=xsd.Use.OPTIONAL)
+            shaked = xsd.Attribute(xsd.Boolean, default=True, use=xsd.Use.OPTIONAL)
+        xmlelement = etree.Element("complexType")
+        ct = CT.parse_xmlelement(xmlelement)
+        assert_equals(False, ct.mixed)
+        assert_equals(True, ct.shaked)
+
+    def test_render_attribute_with_default_value(self):
+        class CT(xsd.ComplexType):
+            mixed = xsd.Attribute(xsd.Boolean, default=False, use=xsd.Use.OPTIONAL)
+            shaked = xsd.Attribute(xsd.Boolean, default=True, use=xsd.Use.OPTIONAL)
+        ct = CT()
+        xmlelement = etree.Element("complexType")
+        ct.render(xmlelement, ct)
+        assert_true(xmlelement.get("mixed") in [None, "false"])
+        assert_true(xmlelement.get("shaked") in [None, "true"])
 
 
 class DecimalTypeTest(unittest.TestCase):
