@@ -73,6 +73,10 @@ class XSDCachedSchemaResolver(object):
     def __call__(self, schema_location=None, namespace=None, base_path=None):
         return self.resolve_schema(schema_location=schema_location, namespace=namespace, base_path=base_path)
 
+    @classmethod
+    def create(cls, base_path=None, locations=None):
+        return cls(XSDSchemaResolver(base_path), locations)
+
     def expire_cache(self, schema_location=None, base_path=None):
         if schema_location:
             cache_key = self.__get_cache_key(schema_location, base_path)

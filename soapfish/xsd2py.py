@@ -14,18 +14,13 @@ import six
 from lxml import etree
 
 from . import xsdspec, xsd_types, xsdresolve
-from .utils import (
-    find_xsd_namespaces,
-    get_rendering_environment,
-    open_document,
-    resolve_location,
-)
+from .utils import get_rendering_environment
 
 logger = logging.getLogger('soapfish')
 
 
 # --- Helpers -----------------------------------------------------------------
-def rewrite_paths(schema, cwd, base_path):
+def rewrite_paths(schema, base_path):
     """
     Rewrite include and import locations relative to base_path.
 
@@ -35,58 +30,64 @@ def rewrite_paths(schema, cwd, base_path):
         if i.schemaLocation is None or '://' in i.schemaLocation:
             # skip if nothing to rewrite or absolute url.
             continue
-        elif '://' in cwd:
+        elif '://' in base_path:
             # remote files must handle paths as url.
-            i.schemaLocation = six.moves.urllib.parse.urljoin(cwd, i.schemaLocation)
+            i.schemaLocation = six.moves.urllib.parse.urljoin(base_path, i.schemaLocation)
         else:
             # local files should handle relative paths.
-            path = os.path.normpath(os.path.join(cwd, i.schemaLocation))
+            path = os.path.normpath(os.path.join(base_path, i.schemaLocation))
             i.schemaLocation = os.path.relpath(path, base_path)
 
 
-def resolve_import(i, known_paths, known_types, parent_namespace, cwd, base_path):
+def resolve_import(i, known_paths, known_types, parent_namespace, base_path, resolver):
     assert isinstance(i, (xsdspec.Import, xsdspec.Include))
-    path, cwd, location = resolve_location(i.schemaLocation, base_path)
+    tag = i.__class__.__name__.lower()
+    logger.debug('Resolving import xsd:%s=%s (base_path=%s)' % (tag, i.schemaLocation, base_path))
+    return generate_code_from_xsd_file(i.schemaLocation, resolver, base_path=base_path, known_paths=known_paths,
+                                       known_types=known_types, parent_namespace=parent_namespace, encoding=None)
 
-    # Skip if this file has already been included:
-    if location and location in (known_paths or []):
+
+def generate_code_from_xsd_file(location, resolver, base_path=None, known_paths=None,
+                                known_types=None, parent_namespace=None, encoding='utf8'):
+    schema_location = xsdresolve.resolve_location(location, base_path)
+    if schema_location and schema_location in (known_paths or []):
+        logger.info('Code for XSD location %s already generated; skipping.' % schema_location)
         return ''
 
-    tag = i.__class__.__name__.lower()
-    logger.info('Generating code for xsd:%s=%s' % (tag, path))
-    xml = open_document(path)
+    resolved_schema = resolver.resolve_schema(schema_location=location, base_path=base_path)
 
-    return generate_code_from_xsd(xml, known_paths, known_types, location,
-                                  parent_namespace, encoding=None, cwd=cwd,
-                                  base_path=base_path, standalone=False)
+    logger.info('Generating code for XSD location %s' % resolved_schema.location)
+    return generate_code_from_schema(resolved_schema, known_paths=known_paths, known_types=known_types,
+                 parent_namespace=parent_namespace, encoding=encoding, standalone=False, resolver=resolver)
 
 
 def generate_code_from_xsd(xml, known_paths=None, known_types=None,
                            location=None, parent_namespace=None,
-                           encoding='utf8', cwd=None, base_path=None,
-                           standalone=True):
+                           encoding='utf8', base_path=None,
+                           standalone=True, resolver=None):
 
     if isinstance(xml, six.binary_type):
         xml = etree.fromstring(xml)
 
-    if cwd is None:
-        cwd = six.moves.getcwd()
-
     if known_paths is None:
         known_paths = []
-
-    xsd_namespaces = find_xsd_namespaces(xml)
-
-    schema = xsdspec.Schema.parse_xmlelement(xml)
 
     # Skip if this file has already been included:
     if location and location in known_paths:
         return ''
 
-    code = schema_to_py(schema, xsd_namespaces, known_paths, known_types,
-                        location, cwd=cwd, base_path=base_path,
-                        standalone=standalone)
+    schema = xsdspec.Schema.parse_xmlelement(xml)
 
+    logger.info('Generating code for XSD schema for target namespace %s' % schema.targetNamespace)
+    return generate_code_from_schema(xsdresolve.ResolvedSchema(schema, location, base_path), known_paths=known_paths, known_types=known_types,
+                                     parent_namespace=parent_namespace, encoding=encoding, standalone=standalone, resolver=resolver)
+
+
+def generate_code_from_schema(resolved_schema, known_paths=None, known_types=None,
+                 parent_namespace=None, encoding=None, standalone=False, resolver=None):
+    code = schema_to_py(resolved_schema.schema, known_paths, known_types,
+                        resolved_schema.location, base_path=resolved_schema.base_path,
+                        standalone=standalone, resolver=resolver)
     return code.encode(encoding) if encoding else code
 
 
@@ -149,14 +150,11 @@ def _reorder_complexTypes(schema):
     schema.complexTypes.sort(**kw)
 
 
-def schema_to_py(schema, xsd_namespaces,
-                 known_paths=None, known_types=None, location=None,
-                 parent_namespace=None, cwd=None, base_path=None,
-                 standalone=False):
-    if base_path is None:
-        base_path = cwd
+def schema_to_py(schema, known_paths=None, known_types=None, location=None,
+                 parent_namespace=None, base_path=None,
+                 standalone=False, resolver=None):
     if base_path:
-        rewrite_paths(schema, cwd, base_path)
+        rewrite_paths(schema, base_path)
 
     _reorder_complexTypes(schema)
 
@@ -167,23 +165,25 @@ def schema_to_py(schema, xsd_namespaces,
 
     if schema.targetNamespace is None:
         schema.targetNamespace = parent_namespace
+    if resolver is None:
+        resolver = xsdresolve.XSDCachedSchemaResolver.create(base_path)
 
     if known_types is None:
         known_types = []
 
-    env = get_rendering_environment(xsd_namespaces, module='soapfish.xsd2py')
+    env = get_rendering_environment(module='soapfish.xsd2py')
     env.globals.update(
         known_paths=known_paths,
         known_types=known_types,
         location=location,
         resolve_import=resolve_import,
-        resolver=xsdresolve.XSDCachedSchemaResolver(xsdresolve.XSDSchemaResolver(base_path=cwd)),
+        resolver=resolver,
     )
     if not standalone:
         del env.globals['preamble']
     tpl = env.get_template('xsd')
 
-    return tpl.render(schema=schema, cwd=cwd, base_path=base_path)
+    return tpl.render(schema=schema, base_path=base_path)
 
 
 # --- Program -----------------------------------------------------------------
@@ -203,10 +203,12 @@ def main(argv=None):
     opt = parser.parse_args(sys.argv[1:] if argv is None else argv)
 
     logger.info('Generating code for XSD document: %s' % opt.xsd)
-    xml = stdin.read() if opt.xsd == '-' else open_document(opt.xsd)
-    cwd = opt.xsd if '://' in opt.xsd else os.path.abspath(opt.xsd)
-    cwd = os.path.dirname(cwd)
-    code = generate_code_from_xsd(xml, encoding='utf-8', cwd=cwd)
+
+    resolver = xsdresolve.XSDCachedSchemaResolver.create()
+    if opt.xsd == '-':
+        code = generate_code_from_xsd(stdin.read(), resolver=resolver, encoding='utf-8')
+    else:
+        code = generate_code_from_xsd_file(opt.xsd, resolver=resolver, encoding='utf-8')
 
     opt.output.write(code.strip())
 

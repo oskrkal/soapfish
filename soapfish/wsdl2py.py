@@ -15,7 +15,6 @@ from lxml import etree
 from . import xsdresolve
 from .soap import SOAPVersion
 from .utils import (
-    find_xsd_namespaces,
     get_rendering_environment,
     open_document,
     resolve_location,
@@ -42,7 +41,7 @@ def reorder_schemas(schemas):
     return schemas
 
 
-def merge_imports(wsdl, definitions, xsd_namespaces, cwd=None, seen=None):
+def merge_imports(wsdl, definitions, cwd=None, seen=None):
 
     def deduplicate(seq):
         seen = set()
@@ -62,12 +61,10 @@ def merge_imports(wsdl, definitions, xsd_namespaces, cwd=None, seen=None):
         xml = open_document(path)
         xml = etree.fromstring(xml)
 
-        xsd_namespaces.update(find_xsd_namespaces(xml))
-
         imported = wsdl.Definitions.parse_xmlelement(xml)
 
         if imported.imports:
-            merge_imports(wsdl, imported, xsd_namespaces, cwd=cwd, seen=seen)
+            merge_imports(wsdl, imported, cwd=cwd, seen=seen)
 
         if imported.types and imported.types.schemas:
             if not definitions.types:
@@ -88,20 +85,20 @@ def generate_code_from_wsdl(xml, target, use_wsa=False, encoding='utf8', cwd=Non
     if cwd is None:
         cwd = six.moves.getcwd()
 
-    xsd_namespaces = find_xsd_namespaces(xml)
-
     soap_version = SOAPVersion.get_version_from_xml(xml)
     logger.info('Detected version of SOAP: %s', soap_version.NAME)
 
     wsdl = get_wsdl_classes(soap_version.BINDING_NAMESPACE)
     definitions = wsdl.Definitions.parse_xmlelement(xml)
-    merge_imports(wsdl, definitions, xsd_namespaces, cwd=cwd)
+    merge_imports(wsdl, definitions, cwd=cwd)
 
-    kw = {'cwd': cwd, 'parent_namespace': definitions.targetNamespace}
+    resolver=xsdresolve.XSDCachedSchemaResolver.create(base_path=cwd)
+
+    kw = {'base_path': cwd, 'parent_namespace': definitions.targetNamespace, 'resolver': resolver}
     schemas = reorder_schemas(definitions.types.schemas) if definitions.types else []
-    schemas = ''.join(schema_to_py(schema, xsd_namespaces, **kw) for schema in schemas)
+    schemas = ''.join(schema_to_py(schema, **kw) for schema in schemas)
 
-    env = get_rendering_environment(xsd_namespaces, module='soapfish.wsdl2py')
+    env = get_rendering_environment(module='soapfish.wsdl2py')
     tpl = env.get_template('wsdl')
 
     code = tpl.render(
@@ -110,7 +107,7 @@ def generate_code_from_wsdl(xml, target, use_wsa=False, encoding='utf8', cwd=Non
         schemas=schemas,
         is_server=bool(target == 'server'),
         use_wsa=use_wsa,
-        resolver=xsdresolve.XSDCachedSchemaResolver(xsdresolve.XSDSchemaResolver(base_path=cwd)),
+        resolver=resolver,
     )
 
     return code.encode(encoding) if encoding else code

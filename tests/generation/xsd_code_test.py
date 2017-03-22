@@ -70,7 +70,7 @@ class XSDCodeGenerationTest(PythonicTestCase):
         # put that directly into schema.elements?
         xml = utils.open_document('tests/assets/generation/reference_complex.xsd')
         schema = xsdspec.Schema.parse_xmlelement(etree.fromstring(xml))
-        code = xsd2py.schema_to_py(schema, ['xs'])
+        code = xsd2py.schema_to_py(schema)
 
         schemas, symbols = generated_symbols(code)
         assert_is_not_empty(schemas)
@@ -97,7 +97,7 @@ class XSDCodeGenerationTest(PythonicTestCase):
     def test_implicit_target_namespace(self):
         xml = utils.open_document('tests/assets/generation/implicit_namespace.xsd')
         schema = xsdspec.Schema.parse_xmlelement(etree.fromstring(xml))
-        xsd2py.schema_to_py(schema, ['xs'], parent_namespace='http://site.example/ws/spec')
+        xsd2py.schema_to_py(schema, parent_namespace='http://site.example/ws/spec')
 
     @unittest.skip('list enumerations are not parsed correctly from xsd')
     def test_can_generate_list_enumeration(self):
@@ -120,7 +120,7 @@ class XSDCodeGenerationTest(PythonicTestCase):
 
     def test_can_generate_extension_imported(self):
         xml = utils.open_document('tests/assets/generation/extension_imported.xsd')
-        code = xsd2py.generate_code_from_xsd(xml, cwd='tests/assets/generation')
+        code = xsd2py.generate_code_from_xsd(xml, base_path='tests/assets/generation')
         schemas, symbols = generated_symbols(code)
         assert_is_not_empty(schemas)
 

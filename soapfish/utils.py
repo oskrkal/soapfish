@@ -122,7 +122,7 @@ def _get_element_by_name(schema, name, resolver, base_path=None):
     return element
 
 
-def get_rendering_environment(xsd_namespaces, module='soapfish'):
+def get_rendering_environment(module='soapfish'):
     '''
     Returns a rendering environment to use with code generation templates.
     '''
@@ -179,7 +179,7 @@ def get_rendering_environment(xsd_namespaces, module='soapfish'):
         namespace, name = qname
         name = capitalize(name)
 
-        if namespace in xsd_namespaces or namespace in (ns.xsd, ns.xsd2000):
+        if namespace in (ns.xsd, ns.xsd2000):
             return 'xsd.%s' % name
         elif known_types is not None and name in known_types:
             return '%s' % name

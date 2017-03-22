@@ -74,7 +74,7 @@ class WSDLCodeGenerationTest(PythonicTestCase):
                 return f.read()
 
         xml = utils.open_document('tests/assets/generation/import_remote.wsdl')
-        with mock.patch('soapfish.xsd2py.open_document') as p:
+        with mock.patch('soapfish.xsdresolve.utils.open_document') as p:
             p.side_effect = _mock
             code = wsdl2py.generate_code_from_wsdl(
                 xml,

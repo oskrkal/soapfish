@@ -50,7 +50,7 @@ class XSDReferencesCodeGenerationTest(PythonicTestCase):
     
     def test_can_generate_code_for_element_ref_in_different_schema(self):
         xsd_str = utils.open_document("tests/assets/references/elementref_different_schema.xsd")
-        code = xsd2py.generate_code_from_xsd(xsd_str, cwd="tests/assets/references")
+        code = xsd2py.generate_code_from_xsd(xsd_str, base_path="tests/assets/references")
 
         schemas, symbols = testutil.generated_symbols(code)
 
