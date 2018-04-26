@@ -2,6 +2,6 @@ argparse
 iso8601
 jinja2
 lxml
-pythonic_testcase
+PythonicTestcase==1.2.2
 requests
 six>=1.10.0
