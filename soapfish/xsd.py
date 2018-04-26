@@ -326,6 +326,8 @@ class Date(SimpleType):
         tz = getattr(value, 'tzinfo', None)
         if not tz:
             return timestring_without_tz
+        if isinstance(value, XSDDate):
+            value = datetime(value.year, value.month, value.day)
         utc_offset = tz.utcoffset(value)
         formatted_tz = timezone_offset_to_string(utc_offset)
         return timestring_without_tz + formatted_tz

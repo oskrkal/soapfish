@@ -100,7 +100,5 @@ class DateTest(SimpleTypeTestCase):
 
     # --- custom assertions ---------------------------------------------------
     def assert_same_tz(self, tz, other_tz):
-        assert_equals(
-            (tz._FixedOffset__offset_hours, tz._FixedOffset__offset_minutes),
-            (other_tz._FixedOffset__offset_hours, other_tz._FixedOffset__offset_minutes),
-        )
+        dt = datetime(2017, 1, 1)
+        assert_equals(tz.utcoffset(dt), other_tz.utcoffset(dt))
